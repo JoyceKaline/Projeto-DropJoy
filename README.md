@@ -1,23 +1,35 @@
-# DropJoy V5
+# DropJoy 1.0
 
 **Encontre. Analise. Venda.**
 
-A V5 adiciona a primeira camada real de identidade e segurança do DropJoy: autenticação por e-mail/senha, senhas com hash Argon2, JWT e autorização do tenant pelo usuário autenticado.
+DropJoy é uma plataforma web para comparar fornecedores, identificar oportunidades, estimar margem/lucro, gerar anúncios e preparar a operação com marketplaces.
 
-## Destaques da V5
+## Estado do projeto
 
-- Login via `POST /api/auth/login`.
-- JWT com expiração configurável.
-- Senhas armazenadas com hash Argon2 via `pwdlib`.
-- `/api/auth/me` para sessão atual.
-- O tenant não é mais escolhido pelo navegador através de `X-Tenant-Slug`; ele é obtido do usuário autenticado.
-- Proteção dos endpoints de Dashboard, Produtos, Fornecedores e Integrações.
-- Alembic configurado com migration inicial.
-- Bloqueio de chave JWT padrão fora de desenvolvimento/teste.
-- Frontend com tela de login, sessão em `sessionStorage` e logout.
-- GitHub Actions executando os testes do backend em push/PR.
+**MVP 1.0 concluído e publicável.** O núcleo funciona sem serviços pagos usando dados demo e gerador local de anúncios. Integrações externas reais ficam condicionadas às credenciais/documentação de cada conta.
 
-## Rodar localmente no Windows
+| Área | Estado |
+|---|---|
+| Login, JWT e refresh token | ✅ |
+| Recuperação de senha | ✅ SMTP opcional |
+| Multi-tenant e RBAC | ✅ |
+| Gestão de usuários | ✅ |
+| Auditoria | ✅ |
+| Radar / DropJoy Score | ✅ |
+| Comparação de fornecedores | ✅ |
+| Histórico de preço/estoque | ✅ |
+| Dropify | 🟡 adapter pronto, schema/credenciais pendentes |
+| DSLite | 🟡 adapter pronto, schema/credenciais pendentes |
+| DropJoy AI local | ✅ |
+| DropJoy AI com OpenAI | ✅ configurável |
+| Marketplaces / rascunhos | ✅ |
+| Marketplace Demo | ✅ publicação simulada |
+| Shopee | 🟡 fluxo pronto, contrato/autorização oficial pendente |
+| PostgreSQL + Alembic | ✅ |
+| Docker + Nginx | ✅ |
+| CI GitHub Actions | ✅ |
+
+## Executar rapidamente em modo local
 
 ### Backend
 
@@ -28,8 +40,6 @@ python -m venv .venv
 pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
-
-Swagger: `http://127.0.0.1:8000/docs`
 
 ### Frontend
 
@@ -42,65 +52,78 @@ python -m http.server 5500
 
 Abra `http://127.0.0.1:5500`.
 
-### Login demo
+Login demo padrão:
 
-Com os valores padrão de desenvolvimento do `.env.example`:
+- `joyce@demo.local`
+- `dropjoy-demo`
 
-- E-mail: `joyce@demo.local`
-- Senha: `dropjoy-demo`
+Use apenas em desenvolvimento.
 
-Essas credenciais existem apenas para desenvolvimento local. Em qualquer ambiente publicado, desative `SEED_DEMO_DATA` e configure usuários reais.
+## Produção com Docker
 
-## Migração da V4 local para V5
+```bash
+cp .env.production.example .env
+# edite o .env com segredos reais
+docker compose up -d --build
+```
 
-A V4 criava o SQLite diretamente, sem controle de migrations. Como esse banco continha apenas dados demo, a migração local mais segura é:
+Acesse a porta definida em `APP_PORT` (padrão `8080`). Veja `docs/DEPLOYMENT.md`.
 
-1. Pare o backend.
-2. Exclua o arquivo local `backend/dropjoy.db`, caso exista.
-3. Suba novamente a V5 para recriar os dados demo; ou use Alembic em um banco limpo.
+## Estrutura
 
-Não faça isso em banco com dados reais.
+```text
+Projeto-DropJoy/
+├─ backend/                 FastAPI, SQLAlchemy, Alembic
+│  ├─ app/core/             configuração, JWT, RBAC
+│  ├─ app/connectors/       Dropify, DSLite e adapters
+│  ├─ app/marketplaces/     adapters de marketplace
+│  ├─ app/routers/          API
+│  ├─ app/services/         score, IA, e-mail, tokens, auditoria
+│  └─ migrations/           schema versionado
+├─ frontend/                SPA estática responsiva
+├─ docs/                    arquitetura e deploy
+├─ docker-compose.yml       PostgreSQL + API + Nginx
+├─ SECURITY.md
+└─ README.md
+```
 
-## Alembic
+## Primeiro usuário em produção
 
-Para usar migrations como fonte do schema:
+Defina as variáveis `BOOTSTRAP_*` no `.env`. O container executa:
 
-```powershell
+```bash
+python -m app.cli bootstrap
+```
+
+O comando é idempotente e não recria um owner já existente.
+
+## Integrações
+
+### DropJoy AI
+
+Sem `OPENAI_API_KEY`, o gerador local permanece funcional. Com uma chave, o backend usa a Responses API da OpenAI e o modelo indicado em `OPENAI_MODEL`.
+
+### Fornecedores
+
+Dropify e DSLite possuem adapters isolados. Eles propositalmente não inventam endpoints/schema: após a homologação, basta mapear a resposta real para `SupplierItem`.
+
+### Shopee
+
+O DropJoy já mantém contas, rascunhos e estado das listagens por tenant. A publicação real permanece bloqueada até haver acesso ao contrato/autenticação oficial da conta Shopee.
+
+## Testes
+
+```bash
 cd backend
-copy .env.example .env
+pytest -q
 ```
 
-No `.env`, ajuste:
+O CI também valida migrations, sintaxe Python, sintaxe JavaScript e Docker Compose.
 
-```env
-AUTO_CREATE_SCHEMA=false
-SEED_DEMO_DATA=false
-```
+## Segurança
 
-Depois:
+Leia `SECURITY.md`. Nunca coloque chaves ou senhas no GitHub.
 
-```powershell
-alembic upgrade head
-```
+## Próxima etapa fora do código
 
-Em produção, migrations devem ser executadas antes da aplicação.
-
-## Segurança de produção
-
-Nunca publique o `.env`. Configure uma `JWT_SECRET_KEY` longa e aleatória. O backend se recusa a iniciar fora de `development/test` se a chave continuar como `dev-only-change-me`.
-
-A V5 usa access token. Refresh tokens, recuperação de senha, verificação de e-mail e MFA ficam para uma etapa posterior, antes de abrir cadastro público.
-
-## Dropify
-
-O conector continua propositalmente sem endpoints inventados. Ele só será ativado depois que tivermos credenciais/documentação homologada da Dropify.
-
-## Próximos marcos
-
-1. Cadastro/admin de usuários e papéis.
-2. Refresh token + recuperação de senha.
-3. Isolamento tenant-aware dos dados privados futuros.
-4. Homologação da Dropify e sync real.
-5. Conector DSLite.
-6. DropJoy AI.
-7. Integração autorizada com Shopee.
+Para transformar o MVP em operação real: obter credenciais de fornecedor/marketplace, configurar OpenAI/SMTP se desejado e publicar o stack no servidor apontado pelo domínio.

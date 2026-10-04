@@ -5,6 +5,7 @@ from ..db import get_db
 from ..models import Product, Offer, Tenant
 from ..core.tenant import current_tenant
 from ..services.scoring import dropjoy_score, offer_payload
+from ..services.tenant_scope import enabled_supplier_ids
 from ..core.config import get_settings
 
 router = APIRouter(prefix="/api/products", tags=["products"])
@@ -12,16 +13,26 @@ settings = get_settings()
 
 @router.get("")
 def products(session: Session = Depends(get_db), tenant: Tenant = Depends(current_tenant)):
+    allowed = enabled_supplier_ids(session, tenant.id)
     ps = session.scalars(select(Product).options(selectinload(Product.offers).selectinload(Offer.supplier))).all()
-    return [{"id": p.id, "name": p.name, "category": p.category, "sale_price": p.sale_price, "best_score": max((dropjoy_score(p, o) for o in p.offers), default=0), "offers": len(p.offers)} for p in ps]
+    result = []
+    for p in ps:
+        offers = [o for o in p.offers if o.supplier_id in allowed]
+        if not offers:
+            continue
+        result.append({"id": p.id, "name": p.name, "category": p.category, "sale_price": p.sale_price, "best_score": max(dropjoy_score(p, o) for o in offers), "offers": len(offers)})
+    return result
 
 @router.get("/{product_id}")
 def product_detail(product_id: int, session: Session = Depends(get_db), tenant: Tenant = Depends(current_tenant)):
+    allowed = enabled_supplier_ids(session, tenant.id)
     p = session.scalar(select(Product).where(Product.id == product_id).options(selectinload(Product.offers).selectinload(Offer.supplier), selectinload(Product.offers).selectinload(Offer.history)))
     if not p:
         raise HTTPException(404, "Produto não encontrado")
     offers = []
     for o in p.offers:
+        if o.supplier_id not in allowed:
+            continue
         x = offer_payload(o)
         x["history"] = [{"captured_at": h.captured_at.isoformat(), "cost": h.cost, "stock": h.stock} for h in sorted(o.history, key=lambda h: h.captured_at)]
         offers.append(x)

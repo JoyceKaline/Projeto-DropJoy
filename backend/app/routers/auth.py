@@ -9,6 +9,7 @@ from ..core.security import verify_password, hash_password, create_access_token
 from ..core.config import get_settings
 from ..services.auth_tokens import issue_refresh_token, rotate_refresh_token, revoke_refresh_token, issue_password_reset, consume_password_reset, revoke_all_user_refresh_tokens
 from ..services.audit import audit
+from ..services.emailing import send_password_reset
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 settings = get_settings()
@@ -70,11 +71,16 @@ def logout(payload: RefreshRequest, user: User = Depends(get_current_user), sess
 @router.post("/forgot-password")
 def forgot_password(payload: ForgotPasswordRequest, session: Session = Depends(get_db)):
     user = session.scalar(select(User).where(User.email == payload.email.lower(), User.active.is_(True)))
-    response = {"message": "Se o e-mail existir, uma instrução de recuperação será gerada."}
+    response = {"message": "Se o e-mail existir, uma instrução de recuperação será enviada ou gerada."}
     if not user:
         return response
     token = issue_password_reset(session, user)
-    audit(session, tenant_id=user.tenant_id, user=user, action="auth.password_reset_requested")
+    delivered = False
+    try:
+        delivered = send_password_reset(user.email, token)
+    except Exception:
+        delivered = False
+    audit(session, tenant_id=user.tenant_id, user=user, action="auth.password_reset_requested", details={"email_delivered": delivered})
     if settings.environment.lower() in {"development", "test"} and settings.expose_reset_tokens_in_dev:
         response["development_reset_token"] = token
     return response

@@ -1,0 +1,69 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-dropjoy}
+      POSTGRES_USER: ${POSTGRES_USER:-dropjoy}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD no .env}
+    volumes:
+      - dropjoy_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dropjoy} -d ${POSTGRES_DB:-dropjoy}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      ENVIRONMENT: production
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-dropjoy}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-dropjoy}
+      AUTO_CREATE_SCHEMA: "false"
+      SEED_DEMO_DATA: "false"
+      CORS_ORIGINS: https://${APP_HOST:-app.joycekalinesilva.online}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Defina JWT_SECRET_KEY no .env}
+      ACCESS_TOKEN_MINUTES: 30
+      REFRESH_TOKEN_DAYS: 14
+      BOOTSTRAP_TENANT_NAME: ${BOOTSTRAP_TENANT_NAME:-}
+      BOOTSTRAP_TENANT_SLUG: ${BOOTSTRAP_TENANT_SLUG:-}
+      BOOTSTRAP_OWNER_NAME: ${BOOTSTRAP_OWNER_NAME:-}
+      BOOTSTRAP_OWNER_EMAIL: ${BOOTSTRAP_OWNER_EMAIL:-}
+      BOOTSTRAP_OWNER_PASSWORD: ${BOOTSTRAP_OWNER_PASSWORD:-}
+      PASSWORD_RESET_BASE_URL: https://${APP_HOST:-app.joycekalinesilva.online}/?reset_token=
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-}
+      SMTP_USE_TLS: ${SMTP_USE_TLS:-true}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-6-luna}
+      DROPIFY_ENABLED: ${DROPIFY_ENABLED:-false}
+      DROPIFY_BASE_URL: ${DROPIFY_BASE_URL:-}
+      DROPIFY_API_TOKEN: ${DROPIFY_API_TOKEN:-}
+      DROPIFY_PRODUCTS_PATH: ${DROPIFY_PRODUCTS_PATH:-}
+      DROPIFY_STOCK_PATH: ${DROPIFY_STOCK_PATH:-}
+      DSLITE_ENABLED: ${DSLITE_ENABLED:-false}
+      DSLITE_BASE_URL: ${DSLITE_BASE_URL:-}
+      DSLITE_API_TOKEN: ${DSLITE_API_TOKEN:-}
+      DSLITE_PRODUCTS_PATH: ${DSLITE_PRODUCTS_PATH:-}
+      SHOPEE_ENABLED: ${SHOPEE_ENABLED:-false}
+      SHOPEE_BASE_URL: ${SHOPEE_BASE_URL:-}
+      SHOPEE_SHOP_ID: ${SHOPEE_SHOP_ID:-}
+      SHOPEE_ACCESS_TOKEN: ${SHOPEE_ACCESS_TOKEN:-}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-8080}:80"
+    depends_on:
+      - backend
+
+volumes:
+  dropjoy_pgdata:
