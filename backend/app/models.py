@@ -127,3 +127,29 @@ class AuditLog(Base):
     entity_id: Mapped[str | None] = mapped_column(String(80), nullable=True)
     details: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+
+
+class MarketplaceOAuthCredential(Base):
+    __tablename__ = "marketplace_oauth_credentials"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    marketplace_account_id: Mapped[int] = mapped_column(ForeignKey("marketplace_accounts.id"), unique=True, index=True)
+    access_token_encrypted: Mapped[str] = mapped_column(Text)
+    refresh_token_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
+    token_type: Mapped[str] = mapped_column(String(30), default="bearer")
+    scope: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    external_user_id: Mapped[str] = mapped_column(String(160), index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+class MarketplaceOAuthSession(Base):
+    __tablename__ = "marketplace_oauth_sessions"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    marketplace_account_id: Mapped[int] = mapped_column(ForeignKey("marketplace_accounts.id"), index=True)
+    tenant_id: Mapped[int] = mapped_column(ForeignKey("tenants.id"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    provider: Mapped[str] = mapped_column(String(40), index=True)
+    state_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    code_verifier_encrypted: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

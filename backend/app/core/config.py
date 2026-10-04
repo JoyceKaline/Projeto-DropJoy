@@ -3,7 +3,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     app_name: str = "DropJoy API"
-    app_version: str = "1.2.0"
+    app_version: str = "1.3.0"
     environment: str = "development"
     database_url: str = "sqlite:///./dropjoy.db"
     auto_create_schema: bool = True
@@ -59,8 +59,8 @@ class Settings(BaseSettings):
     meli_client_id: str | None = None
     meli_client_secret: str | None = None
     meli_redirect_uri: str | None = None
-    meli_access_token: str | None = None
-    meli_user_id: str | None = None
+    marketplace_credential_key: str | None = None
+    frontend_base_url: str = "http://127.0.0.1:5500"
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
@@ -75,6 +75,8 @@ class Settings(BaseSettings):
     def validate_runtime_security(self) -> None:
         if self.environment.lower() not in {"development", "test"} and self.jwt_secret_key == "dev-only-change-me":
             raise RuntimeError("JWT_SECRET_KEY precisa ser alterada fora do ambiente de desenvolvimento.")
+        if self.environment.lower() not in {"development", "test"} and self.meli_enabled and not self.marketplace_credential_key:
+            raise RuntimeError("MARKETPLACE_CREDENTIAL_KEY é obrigatória com Mercado Livre habilitado em produção.")
 
 @lru_cache
 def get_settings() -> Settings:

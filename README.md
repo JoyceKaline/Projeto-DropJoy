@@ -1,4 +1,4 @@
-# DropJoy 1.2
+# DropJoy 1.3
 
 **Encontre. Analise. Venda.**
 
@@ -6,7 +6,7 @@ DropJoy é uma plataforma web para comparar fornecedores, identificar oportunida
 
 ## Estado do projeto
 
-**MVP 1.2 concluído e publicável.** O núcleo funciona sem serviços pagos usando dados demo e gerador local de anúncios. Integrações externas reais ficam condicionadas às credenciais/documentação de cada conta.
+**MVP 1.3 concluído e publicável.** O núcleo funciona sem serviços pagos usando dados demo e gerador local de anúncios. Integrações externas reais ficam condicionadas às credenciais/documentação de cada conta.
 
 | Área | Estado |
 |---|---|
@@ -26,7 +26,7 @@ DropJoy é uma plataforma web para comparar fornecedores, identificar oportunida
 | Marketplaces / rascunhos | ✅ |
 | Marketplace Demo | ✅ publicação simulada |
 | Shopee | 🟡 fluxo pronto, contrato/autorização oficial pendente |
-| Mercado Livre | 🟡 marketplace adicionado; OAuth/User Products pendentes de credenciais |
+| Mercado Livre | ✅ OAuth/PKCE e refresh prontos; publicação User Products pendente do mapeamento final |
 | PostgreSQL + Alembic | ✅ |
 | Docker + Nginx | ✅ |
 | CI GitHub Actions | ✅ |
@@ -170,3 +170,19 @@ O adapter já possui:
 - bloqueio explícito da publicação até mapear categoria, atributos obrigatórios, imagens, condição e User Products.
 
 Nunca publique `MELI_CLIENT_SECRET`, access token ou refresh token no GitHub.
+
+
+## Conectar Mercado Livre
+
+A V1.3 implementa o fluxo real de autorização Mercado Livre:
+
+1. Crie uma aplicação no DevCenter do Mercado Livre.
+2. Cadastre uma Redirect URI HTTPS exatamente igual à configurada em `MELI_REDIRECT_URI`.
+3. Habilite PKCE na aplicação; o DropJoy usa `S256`.
+4. Configure as permissões necessárias para leitura/escrita e acesso offline conforme o uso da aplicação.
+5. Preencha `MELI_CLIENT_ID`, `MELI_CLIENT_SECRET`, `MELI_REDIRECT_URI` e `MARKETPLACE_CREDENTIAL_KEY`.
+6. No DropJoy, crie uma conta do tipo **Mercado Livre** e clique em **Conectar Mercado Livre**.
+
+Access token e refresh token são armazenados criptografados no banco. O refresh token é substituído a cada renovação.
+
+Veja `docs/MERCADO_LIVRE.md`.

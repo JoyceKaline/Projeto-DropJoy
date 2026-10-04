@@ -316,12 +316,29 @@ async function downloadSupplierTemplate(){
   }catch(e){ toast(e.message); }
 }
 
+function marketplaceAccountActions(a){
+  if(a.provider !== 'mercadolivre') return '';
+  if(!a.app_configured){
+    return '<div class="warning-box">Configure a aplicação Mercado Livre no backend para habilitar o OAuth.</div>';
+  }
+  if(!a.oauth_connected){
+    return '<button class="btn primary wide" data-connect-meli="'+a.id+'">Conectar Mercado Livre</button>';
+  }
+  const expiry = a.token_expires_at ? new Date(a.token_expires_at).toLocaleString('pt-BR') : '—';
+  return '<div class="muted small">OAuth conectado · token expira: '+esc(expiry)+'</div>' +
+    '<div class="row" style="margin-top:8px"><button class="btn secondary" data-refresh-meli="'+a.id+'">Renovar token</button>' +
+    '<button class="btn secondary" data-disconnect-meli="'+a.id+'">Desconectar</button></div>';
+}
+
 async function loadMarketplaces(){
   if(!productsCache.length) productsCache = await api('/api/products');
   marketplaceCache = await api('/api/marketplaces');
   $('#marketplaceAccounts').innerHTML = marketplaceCache.accounts.map(a =>
-    '<div class="account-card"><div class="row"><strong>'+esc(a.display_name)+'</strong><span class="pill '+(a.connector_configured?'good':'warn')+'">'+esc(a.status)+'</span></div><div class="muted small">'+esc(a.provider)+' · '+esc(a.external_account_id)+'</div></div>'
+    '<div class="account-card"><div class="row"><strong>'+esc(a.display_name)+'</strong><span class="pill '+(a.connector_configured?'good':'warn')+'">'+esc(a.status)+'</span></div>' +
+    '<div class="muted small">'+esc(a.provider)+' · '+esc(a.external_account_id)+'</div>' +
+    marketplaceAccountActions(a) + '</div>'
   ).join('') || '<p class="muted small">Nenhuma conta cadastrada.</p>';
+
   $('#listingAccount').innerHTML = marketplaceCache.accounts.map(a => '<option value="'+a.id+'">'+esc(a.display_name)+' ('+esc(a.provider)+')</option>').join('');
   $('#listingProduct').innerHTML = productsCache.map(p => '<option value="'+p.id+'">'+esc(p.name)+'</option>').join('');
   $('#marketplaceListings').innerHTML = marketplaceCache.listings.map(l =>
@@ -330,23 +347,66 @@ async function loadMarketplaces(){
     (l.status==='draft' ? '<button class="btn secondary" data-publish="'+l.id+'">Publicar</button>' : '<div class="muted small">ID externo: '+esc(l.external_listing_id || '—')+'</div>') +
     '</div>'
   ).join('') || '<p class="muted small">Nenhuma listagem.</p>';
-  $$('[data-publish]').forEach(b => b.onclick = async () => {
+
+  $('[data-publish]').forEach(b => b.onclick = async () => {
     try{ await api('/api/marketplaces/listings/'+b.dataset.publish+'/publish',{method:'POST'}); toast('Listagem publicada.'); await loadMarketplaces(); }
     catch(e){ toast(e.message); }
   });
+  $('[data-connect-meli]').forEach(b => b.onclick = () => connectMercadoLivre(Number(b.dataset.connectMeli)));
+  $('[data-refresh-meli]').forEach(b => b.onclick = () => refreshMercadoLivre(Number(b.dataset.refreshMeli)));
+  $('[data-disconnect-meli]').forEach(b => b.onclick = () => disconnectMercadoLivre(Number(b.dataset.disconnectMeli)));
+}
+
+function updateMarketplaceForm(){
+  const isMeli = $('#marketplaceProvider').value === 'mercadolivre';
+  const input = $('#marketplaceExternalId');
+  input.required = !isMeli;
+  input.disabled = isMeli;
+  input.placeholder = isMeli ? 'Preenchido automaticamente após o OAuth' : 'ID da conta/loja';
+  if(isMeli) input.value = '';
+}
+
+async function connectMercadoLivre(accountId){
+  try{
+    const data = await api('/api/marketplaces/mercadolivre/accounts/'+accountId+'/connect',{method:'POST'});
+    if(!data.authorization_url) throw new Error('URL de autorização não retornada.');
+    location.href = data.authorization_url;
+  }catch(e){ toast(e.message); }
+}
+
+async function refreshMercadoLivre(accountId){
+  try{
+    await api('/api/marketplaces/mercadolivre/accounts/'+accountId+'/refresh',{method:'POST'});
+    toast('Token do Mercado Livre renovado.');
+    await loadMarketplaces();
+  }catch(e){ toast(e.message); }
+}
+
+async function disconnectMercadoLivre(accountId){
+  if(!confirm('Desconectar esta conta do Mercado Livre?')) return;
+  try{
+    await api('/api/marketplaces/mercadolivre/accounts/'+accountId+'/disconnect',{method:'POST'});
+    toast('Mercado Livre desconectado.');
+    await loadMarketplaces();
+  }catch(e){ toast(e.message); }
 }
 
 async function createMarketplaceAccount(ev){
   ev.preventDefault();
   try{
+    const provider = $('#marketplaceProvider').value;
     await api('/api/marketplaces/accounts',{method:'POST',body:JSON.stringify({
-      provider:$('#marketplaceProvider').value,
-      external_account_id:$('#marketplaceExternalId').value,
+      provider:provider,
+      external_account_id:provider === 'mercadolivre' ? null : $('#marketplaceExternalId').value,
       display_name:$('#marketplaceName').value
     })});
-    ev.target.reset(); toast('Conta adicionada.'); await loadMarketplaces();
+    ev.target.reset();
+    updateMarketplaceForm();
+    toast('Conta adicionada.');
+    await loadMarketplaces();
   }catch(e){ toast(e.message); }
 }
+
 async function createListing(ev){
   ev.preventDefault();
   try{
@@ -407,7 +467,8 @@ async function syncDemo(){
 
 async function boot(){
   $('#apiStatus').textContent = 'API conectando';
-  const reset = new URLSearchParams(location.search).get('reset_token');
+  const params = new URLSearchParams(location.search);
+  const reset = params.get('reset_token');
   if(reset){
     $('#loginView').classList.add('hidden');
     $('#resetView').classList.remove('hidden');
@@ -419,7 +480,13 @@ async function boot(){
     const me = await api('/api/auth/me');
     showApp(me);
     $('#apiStatus').textContent = 'API online';
-    await switchView('radar');
+    const returnedFromMeli = params.get('marketplace') === 'mercadolivre';
+    await switchView(returnedFromMeli ? 'marketplaces' : 'radar');
+    if(returnedFromMeli){
+      if(params.get('connected') === '1') toast('Mercado Livre conectado com sucesso.');
+      if(params.get('oauth_error')) toast('Falha ao conectar Mercado Livre: '+params.get('oauth_error'));
+      history.replaceState({},'',location.pathname);
+    }
   }catch(e){
     clearSession(); showAuth(); $('#loginMessage').textContent = e.message;
   }
@@ -432,6 +499,7 @@ $('#logoutBtn').addEventListener('click',logout);
 $('#syncDemoBtn').addEventListener('click',syncDemo);
 $('#generateAiBtn').addEventListener('click',generateAi);
 $('#marketplaceAccountForm').addEventListener('submit',createMarketplaceAccount);
+$('#marketplaceProvider').addEventListener('change',updateMarketplaceForm);
 $('#listingForm').addEventListener('submit',createListing);
 $('#userForm').addEventListener('submit',createUser);
 $('#supplierImportForm').addEventListener('submit',importSupplierFile);
@@ -442,4 +510,5 @@ $('#productSearch').addEventListener('input',() => {
 });
 $$('.nav-item').forEach(b => b.addEventListener('click',() => switchView(b.dataset.view)));
 
+updateMarketplaceForm();
 boot();

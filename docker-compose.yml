@@ -57,8 +57,8 @@ services:
       MELI_CLIENT_ID: ${MELI_CLIENT_ID:-}
       MELI_CLIENT_SECRET: ${MELI_CLIENT_SECRET:-}
       MELI_REDIRECT_URI: ${MELI_REDIRECT_URI:-}
-      MELI_ACCESS_TOKEN: ${MELI_ACCESS_TOKEN:-}
-      MELI_USER_ID: ${MELI_USER_ID:-}
+      MARKETPLACE_CREDENTIAL_KEY: ${MARKETPLACE_CREDENTIAL_KEY:-}
+      FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-https://app.joycekalinesilva.online}
     depends_on:
       db:
         condition: service_healthy

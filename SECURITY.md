@@ -29,3 +29,8 @@ Nunca faça commit de `.env`, tokens de fornecedor, chaves OpenAI, credenciais S
 ## Relato de vulnerabilidade
 
 Enquanto o projeto for privado/pessoal, registre achados como issue privada ou trate fora do repositório público para evitar divulgar detalhes exploráveis antes da correção.
+
+
+## Credenciais de marketplaces
+
+Tokens OAuth de marketplaces são criptografados em repouso. Em produção, configure uma `MARKETPLACE_CREDENTIAL_KEY` Fernet exclusiva e mantenha-a fora do GitHub. A perda dessa chave impede a descriptografia dos tokens já salvos.
