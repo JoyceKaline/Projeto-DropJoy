@@ -22,13 +22,12 @@ def integration_status(session: Session, tenant_id: int) -> list[dict]:
             "integration_type": supplier.integration_type,
             "enabled": bool(link and link.enabled),
             "mode": link.mode if link else "off",
-            "configured": configured if supplier.slug == "dropify" else bool(link and link.mode == "demo"),
+            "configured": configured,
             "last_sync_at": link.last_sync_at.isoformat() if link and link.last_sync_at else None,
         })
     return result
 
 def demo_sync(session: Session, tenant_id: int) -> dict:
-    """Atualização determinística para demonstrar snapshots sem API externa."""
     offers = session.scalars(select(Offer).order_by(Offer.id)).all()
     now = datetime.now(timezone.utc)
     changed = 0

@@ -3,7 +3,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     app_name: str = "DropJoy API"
-    app_version: str = "0.6.0"
+    app_version: str = "0.7.0"
     environment: str = "development"
     database_url: str = "sqlite:///./dropjoy.db"
     auto_create_schema: bool = True
@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     demo_user_email: str = "joyce@demo.local"
     demo_user_password: str = "dropjoy-demo"
 
+    openai_api_key: str | None = None
+    openai_model: str = "gpt-6-luna"
+
     marketplace_percent_fee: float = 0.20
     marketplace_fixed_fee: float = 4.00
 
@@ -27,6 +30,16 @@ class Settings(BaseSettings):
     dropify_api_token: str | None = None
     dropify_products_path: str | None = None
     dropify_stock_path: str | None = None
+
+    dslite_enabled: bool = False
+    dslite_base_url: str | None = None
+    dslite_api_token: str | None = None
+    dslite_products_path: str | None = None
+
+    shopee_enabled: bool = False
+    shopee_base_url: str | None = None
+    shopee_shop_id: str | None = None
+    shopee_access_token: str | None = None
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
