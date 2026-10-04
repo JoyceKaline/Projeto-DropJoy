@@ -73,7 +73,24 @@
         <div class="layout-two"><article class="panel"><h2>Gerar anúncio</h2><label>Produto<select id="aiProduct"></select></label><label>Observações<textarea id="aiNotes" rows="5" placeholder="Ex.: público-alvo, diferencial, tom do anúncio"></textarea></label><button id="generateAiBtn" class="btn primary">Gerar com DropJoy AI</button></article><article class="panel"><h2>Resultado</h2><pre id="aiResult" class="result-box">Selecione um produto e gere o anúncio.</pre></article></div>
       </section>
 
-      <section id="view-suppliers" class="view hidden"><article class="panel"><div class="panel-head"><h2>Fornecedores</h2><span class="muted">Ative somente os que deseja usar no Radar.</span></div><div id="supplierGrid" class="cards-grid"></div></article></section>
+      <section id="view-suppliers" class="view hidden">
+        <div class="layout-two">
+          <article class="panel">
+            <div class="panel-head"><h2>Fornecedores</h2><span class="muted">Ative somente os que deseja usar no Radar.</span></div>
+            <div id="supplierGrid" class="cards-grid"></div>
+          </article>
+          <article class="panel admin-only">
+            <div class="panel-head"><h2>Importar catálogo real</h2><button id="supplierTemplateBtn" class="btn secondary" type="button">Baixar modelo CSV</button></div>
+            <p class="muted small">Aceita CSV ou XLSX. O DropJoy reconhece colunas comuns de SKU, produto, categoria, custo, estoque e preço de venda.</p>
+            <form id="supplierImportForm" class="stack">
+              <label>Fornecedor<select id="supplierImportSupplier" required></select></label>
+              <label>Arquivo<input id="supplierImportFile" type="file" accept=".csv,.xlsx" required></label>
+              <button class="btn primary" type="submit">Importar catálogo</button>
+            </form>
+            <div id="supplierImportResult" class="message"></div>
+          </article>
+        </div>
+      </section>
 
       <section id="view-marketplaces" class="view hidden">
         <div class="layout-two">

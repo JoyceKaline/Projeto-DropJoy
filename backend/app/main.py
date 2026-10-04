@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .db import Base, engine, SessionLocal
 from .seed import seed
 from .core.config import get_settings
-from .routers import auth, users, audit, ai, marketplaces, dashboard, products, suppliers, integrations
+from .routers import auth, users, audit, ai, marketplaces, dashboard, products, suppliers, integrations, imports
 
 settings = get_settings()
 
@@ -26,7 +26,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 app.add_middleware(CORSMiddleware, allow_origins=settings.origins, allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
-for router in (auth.router, users.router, audit.router, ai.router, marketplaces.router, dashboard.router, products.router, suppliers.router, integrations.router):
+for router in (auth.router, users.router, audit.router, ai.router, marketplaces.router, dashboard.router, products.router, suppliers.router, integrations.router, imports.router):
     app.include_router(router)
 
 @app.get("/health")

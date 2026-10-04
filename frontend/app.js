@@ -64,6 +64,21 @@ async function api(path, options, retry){
   return data;
 }
 
+async function apiUpload(path, formData, retry){
+  retry = retry !== false;
+  const headers = {};
+  if(accessToken()) headers.Authorization = 'Bearer ' + accessToken();
+  const r = await fetch(API + path, {method:'POST',headers,body:formData});
+  if(r.status === 401 && retry && refreshToken()){
+    const ok = await refreshSession();
+    if(ok) return apiUpload(path, formData, false);
+  }
+  let data = null;
+  try{ data = await r.json(); }catch(_){}
+  if(!r.ok) throw new Error(apiErrorMessage(data, 'HTTP ' + r.status));
+  return data;
+}
+
 function toast(message){
   const el = $('#toast');
   el.textContent = message;
@@ -254,12 +269,51 @@ async function loadSuppliers(){
     '<div class="muted small">Confiabilidade: '+esc(s.reliability)+'% · modo '+esc(s.mode)+'</div>' +
     '<button class="btn secondary wide" data-toggle-supplier="'+s.id+'" data-enabled="'+String(s.enabled)+'" '+(canEdit?'':'disabled')+'>'+(s.enabled?'Desativar':'Ativar')+'</button></div>'
   ).join('');
-  $$('[data-toggle-supplier]').forEach(b => b.onclick = async () => {
+  const importSelect = $('#supplierImportSupplier');
+  if(importSelect) importSelect.innerHTML = list.map(s => '<option value="'+s.id+'">'+esc(s.name)+'</option>').join('');
+  $('[data-toggle-supplier]').forEach(b => b.onclick = async () => {
     const enabled = b.dataset.enabled !== 'true';
     await api('/api/suppliers/'+b.dataset.toggleSupplier,{method:'PATCH',body:JSON.stringify({enabled})});
     toast(enabled ? 'Fornecedor ativado.' : 'Fornecedor desativado.');
     await loadSuppliers();
   });
+}
+
+async function importSupplierFile(ev){
+  ev.preventDefault();
+  const supplierId = Number($('#supplierImportSupplier').value);
+  const file = $('#supplierImportFile').files[0];
+  const result = $('#supplierImportResult');
+  if(!supplierId || !file) return;
+  result.textContent = 'Importando...';
+  const form = new FormData();
+  form.append('file', file);
+  try{
+    const data = await apiUpload('/api/imports/supplier/'+supplierId, form);
+    result.textContent = data.imported_rows+' linhas importadas · '+data.created_products+' produtos novos · '+data.updated_offers+' ofertas atualizadas' + (data.rejected_rows ? ' · '+data.rejected_rows+' rejeitadas' : '');
+    toast('Catálogo importado com sucesso.');
+    productsCache = [];
+    await loadSuppliers();
+  }catch(e){
+    result.textContent = e.message;
+  }
+}
+
+async function downloadSupplierTemplate(){
+  try{
+    const r = await fetch(API + '/api/imports/supplier-template.csv',{headers:{Authorization:'Bearer '+accessToken()}});
+    if(!r.ok){
+      let data=null; try{data=await r.json()}catch(_){}
+      throw new Error(apiErrorMessage(data,'Falha ao baixar o modelo.'));
+    }
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'dropjoy-modelo-fornecedor.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  }catch(e){ toast(e.message); }
 }
 
 async function loadMarketplaces(){
@@ -380,6 +434,8 @@ $('#generateAiBtn').addEventListener('click',generateAi);
 $('#marketplaceAccountForm').addEventListener('submit',createMarketplaceAccount);
 $('#listingForm').addEventListener('submit',createListing);
 $('#userForm').addEventListener('submit',createUser);
+$('#supplierImportForm').addEventListener('submit',importSupplierFile);
+$('#supplierTemplateBtn').addEventListener('click',downloadSupplierTemplate);
 $('#productSearch').addEventListener('input',() => {
   const q = $('#productSearch').value.toLowerCase().trim();
   renderProducts(productsCache.filter(p => p.name.toLowerCase().includes(q) || p.category.toLowerCase().includes(q)));

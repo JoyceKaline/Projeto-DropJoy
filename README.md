@@ -1,4 +1,4 @@
-# DropJoy 1.0
+# DropJoy 1.1
 
 **Encontre. Analise. Venda.**
 
@@ -6,7 +6,7 @@ DropJoy é uma plataforma web para comparar fornecedores, identificar oportunida
 
 ## Estado do projeto
 
-**MVP 1.0 concluído e publicável.** O núcleo funciona sem serviços pagos usando dados demo e gerador local de anúncios. Integrações externas reais ficam condicionadas às credenciais/documentação de cada conta.
+**MVP 1.1 concluído e publicável.** O núcleo funciona sem serviços pagos usando dados demo e gerador local de anúncios. Integrações externas reais ficam condicionadas às credenciais/documentação de cada conta.
 
 | Área | Estado |
 |---|---|
@@ -17,6 +17,7 @@ DropJoy é uma plataforma web para comparar fornecedores, identificar oportunida
 | Auditoria | ✅ |
 | Radar / DropJoy Score | ✅ |
 | Comparação de fornecedores | ✅ |
+| Importação CSV/XLSX de fornecedor | ✅ |
 | Histórico de preço/estoque | ✅ |
 | Dropify | 🟡 adapter pronto, schema/credenciais pendentes |
 | DSLite | 🟡 adapter pronto, schema/credenciais pendentes |
@@ -127,3 +128,24 @@ Leia `SECURITY.md`. Nunca coloque chaves ou senhas no GitHub.
 ## Próxima etapa fora do código
 
 Para transformar o MVP em operação real: obter credenciais de fornecedor/marketplace, configurar OpenAI/SMTP se desejado e publicar o stack no servidor apontado pelo domínio.
+
+
+## Importar catálogo de fornecedor
+
+Na tela **Fornecedores**, usuários `owner/admin` podem importar arquivos `.csv` ou `.xlsx`.
+
+O importador reconhece nomes comuns de colunas. Campos obrigatórios:
+
+- SKU/código
+- Produto/nome
+- Custo/preço atacado
+- Estoque
+- Preço de venda/varejo
+
+Campos opcionais:
+
+- GTIN/EAN — quando presente, permite que ofertas de fornecedores diferentes sejam relacionadas ao mesmo produto.
+- Categoria
+- Prazo em horas
+
+A importação atualiza ofertas existentes e adiciona um snapshot ao histórico de preço/estoque. O limite atual é 10 MB e 5.000 linhas por arquivo.
