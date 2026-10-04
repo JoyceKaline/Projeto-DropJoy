@@ -16,8 +16,8 @@ MAX_FILE_BYTES = 10 * 1024 * 1024
 @router.get("/supplier-template.csv")
 def supplier_template(admin: User = Depends(require_roles("owner", "admin"))):
     content = (
-        "sku;gtin;produto;categoria;custo;estoque;preco_venda;prazo_horas\\n"
-        "ABC123;7891234567890;Produto exemplo;Casa;39,90;25;69,90;24\\n"
+        "sku;gtin;produto;categoria;custo;estoque;preco_venda;prazo_horas\n"
+        "ABC123;7891234567890;Produto exemplo;Casa;39,90;25;69,90;24\n"
     )
     return Response(
         content=content.encode("utf-8-sig"),

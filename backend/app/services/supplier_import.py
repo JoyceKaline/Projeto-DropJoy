@@ -56,7 +56,7 @@ def _csv_rows(content: bytes) -> list[dict]:
     text = _decode_csv(content)
     sample = text[:4096]
     try:
-        dialect = csv.Sniffer().sniff(sample, delimiters=",;\\t|")
+        dialect = csv.Sniffer().sniff(sample, delimiters=",;\t|")
     except csv.Error:
         dialect = csv.excel
         dialect.delimiter = ";"
