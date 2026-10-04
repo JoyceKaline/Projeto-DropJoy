@@ -2,8 +2,10 @@ from app.marketplaces.mercadolivre import MercadoLivreMarketplaceConnector
 
 
 class StubResponse:
-    def __init__(self, data):
-        self.data = data
+    def __init__(self, data=None, status_code=200, text=""):
+        self.data = data if data is not None else {}
+        self.status_code = status_code
+        self.text = text
 
     def raise_for_status(self):
         return None
@@ -45,7 +47,10 @@ def test_user_product_publish_uses_official_items_flow(monkeypatch):
         listing_type_id="gold_special",
         available_quantity=4,
         pictures=[{"source": "https://example.test/image.jpg"}],
-        attributes=[{"id": "BRAND", "value_name": "DropJoy"}],
+        attributes=[
+            {"id": "BRAND", "value_name": "DropJoy"},
+            {"id": "ITEM_CONDITION", "value_id": "2230284"},
+        ],
     )
 
     assert result.external_listing_id == "MLB123"
@@ -53,6 +58,7 @@ def test_user_product_publish_uses_official_items_flow(monkeypatch):
     item_payload = calls[0][1]["json"]
     assert item_payload["family_name"] == "Cafeteira Elétrica"
     assert "title" not in item_payload
+    assert "condition" not in item_payload
     assert item_payload["available_quantity"] == 4
     assert calls[1][0].endswith("/items/MLB123/description")
     assert calls[1][1]["json"] == {"plain_text": "Descrição simples"}
@@ -112,3 +118,56 @@ def test_multiwarehouse_publish_uses_stock_locations_endpoint(monkeypatch):
     assert "available_quantity" not in calls[0][1]["json"]
     assert calls[0][1]["json"]["stock_locations"][0]["quantity"] == 3
 
+
+
+def test_validate_item_uses_official_validator(monkeypatch):
+    connector = MercadoLivreMarketplaceConnector()
+    calls = []
+
+    def fake_post(url, **kwargs):
+        calls.append((url, kwargs))
+        return StubResponse(status_code=204)
+
+    monkeypatch.setattr("app.marketplaces.mercadolivre.httpx.post", fake_post)
+    result = connector.validate_item(
+        price=59.9,
+        access_token="token",
+        category_id="MLB1234",
+        family_name="Produto Teste",
+        condition="new",
+        currency_id="BRL",
+        listing_type_id="gold_special",
+        available_quantity=2,
+        pictures=[{"source": "https://example.test/image.jpg"}],
+        attributes=[{"id": "ITEM_CONDITION", "value_id": "2230284"}],
+    )
+    assert result["valid"] is True
+    assert calls[0][0].endswith("/items/validate")
+    assert "condition" not in calls[0][1]["json"]
+
+
+def test_validate_item_returns_details_on_rejection(monkeypatch):
+    connector = MercadoLivreMarketplaceConnector()
+
+    def fake_post(url, **kwargs):
+        return StubResponse(
+            {"message": "Validation error", "cause": [{"code": "item.attributes.missing_required"}]},
+            status_code=400,
+        )
+
+    monkeypatch.setattr("app.marketplaces.mercadolivre.httpx.post", fake_post)
+    result = connector.validate_item(
+        price=59.9,
+        access_token="token",
+        category_id="MLB1234",
+        family_name="Produto Teste",
+        condition="new",
+        currency_id="BRL",
+        listing_type_id="gold_special",
+        available_quantity=2,
+        pictures=[{"source": "https://example.test/image.jpg"}],
+        attributes=[{"id": "ITEM_CONDITION", "value_id": "2230284"}],
+    )
+    assert result["valid"] is False
+    assert result["status_code"] == 400
+    assert result["details"]["message"] == "Validation error"

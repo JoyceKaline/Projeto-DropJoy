@@ -1,4 +1,4 @@
-# DropJoy 1.3
+# DropJoy 1.4
 
 **Encontre. Analise. Venda.**
 
@@ -6,7 +6,7 @@ DropJoy é uma plataforma web para comparar fornecedores, identificar oportunida
 
 ## Estado do projeto
 
-**MVP 1.3 concluído e publicável.** O núcleo funciona sem serviços pagos usando dados demo e gerador local de anúncios. Integrações externas reais ficam condicionadas às credenciais/documentação de cada conta.
+**MVP 1.4 concluído e publicável.** O núcleo funciona sem serviços pagos usando dados demo e gerador local de anúncios. Integrações externas reais ficam condicionadas às credenciais/documentação de cada conta.
 
 | Área | Estado |
 |---|---|
@@ -189,3 +189,8 @@ Access token e refresh token são armazenados criptografados no banco. O refresh
 
 Veja `docs/MERCADO_LIVRE.md`.
 
+
+
+### Validação antes de publicar no Mercado Livre
+
+No fluxo padrão de User Products, o DropJoy executa o validador oficial `POST /items/validate` antes do `POST /items`. A publicação é interrompida quando o Mercado Livre retornar qualquer erro de validação. Para sellers com estoque multi-origem, o DropJoy usa o fluxo `/items/multiwarehouse` e as validações específicas de categoria, atributos e depósitos, sem inventar um endpoint de validação que não esteja documentado.

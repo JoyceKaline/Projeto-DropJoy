@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 import json
 import secrets
+import unicodedata
 from typing import Literal
 from urllib.parse import urlencode
 
@@ -103,6 +104,58 @@ def _meli_http_error(exc: httpx.HTTPError) -> str:
     causes = body.get("cause") or []
     details = [str(cause.get("message") or cause.get("code")) for cause in causes if isinstance(cause, dict)]
     return (str(message) + (": " + "; ".join(details) if details else ""))[:2000]
+
+def _normalized_label(value: str | None) -> str:
+    text = unicodedata.normalize("NFKD", str(value or "").strip().lower())
+    return "".join(ch for ch in text if not unicodedata.combining(ch))
+
+
+def _ensure_item_condition(
+    attributes: list[dict],
+    *,
+    condition: str | None,
+    category_attributes: list[dict],
+) -> list[dict]:
+    result = [dict(attribute) for attribute in attributes]
+    if any(str(attribute.get("id") or "").upper() == "ITEM_CONDITION" for attribute in result):
+        return result
+
+    targets = {
+        "new": {"novo", "new", "nuevo"},
+        "used": {"usado", "used"},
+        "not_specified": {"nao especificado", "not specified", "no especificado"},
+    }.get(condition or "", set())
+    if not targets:
+        return result
+
+    condition_attribute = next(
+        (attribute for attribute in category_attributes if str(attribute.get("id") or "").upper() == "ITEM_CONDITION"),
+        None,
+    )
+    if not condition_attribute:
+        return result
+
+    for value in condition_attribute.get("values") or []:
+        if _normalized_label(value.get("name")) in targets and value.get("id"):
+            result.append({"id": "ITEM_CONDITION", "value_id": str(value["id"])})
+            break
+    return result
+
+
+def _meli_validation_message(result: dict) -> str:
+    details = result.get("details") or {}
+    if isinstance(details, dict):
+        message = details.get("message") or details.get("error") or "O validador do Mercado Livre rejeitou o anúncio."
+        causes = details.get("cause") or []
+        cause_messages = [
+            str(cause.get("message") or cause.get("code"))
+            for cause in causes
+            if isinstance(cause, dict)
+        ]
+        if cause_messages:
+            message = str(message) + ": " + "; ".join(cause_messages)
+        return message[:2000]
+    return "O validador do Mercado Livre rejeitou o anúncio."
 
 @router.get("")
 def overview(user: User = Depends(get_current_user), session: Session = Depends(get_db)):
@@ -558,7 +611,6 @@ def publish_listing(
         pictures = [{"source": value} for value in json.loads(listing.pictures_json or "[]")]
         attributes = json.loads(listing.attributes_json or "[]")
         stock_locations = json.loads(listing.stock_locations_json or "[]")
-        provided_attribute_ids = {attribute["id"] for attribute in attributes}
         try:
             category = connector.category(category_id=listing.category_id, access_token=token)
             settings_data = category.get("settings") or {}
@@ -573,9 +625,21 @@ def publish_listing(
             category_attributes = connector.category_attributes(
                 category_id=listing.category_id, access_token=token
             )
+            attributes = _ensure_item_condition(
+                attributes,
+                condition=listing.condition,
+                category_attributes=category_attributes,
+            )
+            provided_attribute_ids = {
+                attribute["id"] for attribute in attributes if attribute.get("id")
+            }
             required_ids = {
                 attribute["id"] for attribute in category_attributes
                 if (attribute.get("tags") or {}).get("required")
+                or (
+                    listing.condition == "new"
+                    and (attribute.get("tags") or {}).get("new_required")
+                )
             }
             missing_ids = sorted(required_ids - provided_attribute_ids)
             if missing_ids:
@@ -633,6 +697,29 @@ def publish_listing(
                     422,
                     "Atributos condicionais obrigatórios ausentes: " + ", ".join(missing_conditional),
                 )
+
+            # O Mercado Livre oferece /items/validate para o fluxo padrão.
+            # Multiwarehouse possui endpoint próprio de criação e não tem um validador específico
+            # documentado com o mesmo contrato, portanto não inventamos esse comportamento.
+            if not warehouse_management:
+                validation = connector.validate_item(
+                    price=listing.price,
+                    access_token=token,
+                    category_id=listing.category_id,
+                    family_name=listing.family_name,
+                    condition=listing.condition,
+                    currency_id=listing.currency_id,
+                    listing_type_id=listing.listing_type_id,
+                    available_quantity=listing.available_quantity,
+                    pictures=pictures,
+                    attributes=attributes,
+                    stock_locations=None,
+                )
+                if not validation["valid"]:
+                    message = _meli_validation_message(validation)
+                    listing.publication_error = message
+                    session.commit()
+                    raise HTTPException(422, message)
         except httpx.HTTPError as exc:
             message = _meli_http_error(exc)
             listing.publication_error = message

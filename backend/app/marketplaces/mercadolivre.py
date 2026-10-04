@@ -147,6 +147,107 @@ class MercadoLivreMarketplaceConnector:
         response.raise_for_status()
         return response.json().get("required_attributes", [])
 
+    def _build_item_payload(
+        self,
+        *,
+        price: float,
+        access_token: str | None,
+        category_id: str | None,
+        family_name: str | None,
+        condition: str | None,
+        currency_id: str,
+        listing_type_id: str | None,
+        available_quantity: int | None,
+        pictures: list[dict[str, str]] | None,
+        attributes: list[dict[str, str]] | None,
+        stock_locations: list[dict[str, Any]] | None,
+    ) -> tuple[str, dict[str, Any]]:
+        required = {
+            "access_token": access_token,
+            "category_id": category_id,
+            "family_name": family_name,
+            "listing_type_id": listing_type_id,
+            "pictures": pictures,
+            "attributes": attributes,
+        }
+        missing = [key for key, value in required.items() if value is None or value == [] or value == ""]
+        if missing:
+            raise ValueError("Campos obrigatórios ausentes para o Mercado Livre: " + ", ".join(missing))
+
+        has_item_condition = any(
+            str(attribute.get("id") or "").upper() == "ITEM_CONDITION"
+            for attribute in (attributes or [])
+        )
+        if not has_item_condition and not condition:
+            raise ValueError("Informe ITEM_CONDITION nos atributos ou a condição legada do item")
+
+        item: dict[str, Any] = {
+            "family_name": family_name,
+            "category_id": category_id,
+            "price": price,
+            "currency_id": currency_id,
+            "buying_mode": "buy_it_now",
+            "listing_type_id": listing_type_id,
+            "pictures": pictures,
+            "attributes": attributes,
+        }
+        # ITEM_CONDITION é o formato recomendado para novas integrações.
+        # O campo condition fica apenas como fallback de compatibilidade quando o atributo não foi enviado.
+        if not has_item_condition and condition:
+            item["condition"] = condition
+
+        path = "/items"
+        if stock_locations:
+            item["stock_locations"] = stock_locations
+            path = "/items/multiwarehouse"
+        elif available_quantity is not None:
+            item["available_quantity"] = available_quantity
+        else:
+            raise ValueError("Informe available_quantity ou stock_locations")
+        return path, item
+
+    def validate_item(
+        self,
+        *,
+        price: float,
+        access_token: str,
+        category_id: str,
+        family_name: str,
+        condition: str | None,
+        currency_id: str,
+        listing_type_id: str,
+        available_quantity: int | None,
+        pictures: list[dict[str, str]],
+        attributes: list[dict[str, str]],
+        stock_locations: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
+        _, item = self._build_item_payload(
+            price=price,
+            access_token=access_token,
+            category_id=category_id,
+            family_name=family_name,
+            condition=condition,
+            currency_id=currency_id,
+            listing_type_id=listing_type_id,
+            available_quantity=available_quantity,
+            pictures=pictures,
+            attributes=attributes,
+            stock_locations=stock_locations,
+        )
+        response = httpx.post(
+            self.api_base + "/items/validate",
+            headers={**self._headers(access_token), "Content-Type": "application/json"},
+            json=item,
+            timeout=30.0,
+        )
+        if response.status_code == 204:
+            return {"valid": True, "status_code": 204, "details": None}
+        try:
+            details = response.json()
+        except ValueError:
+            details = {"message": response.text}
+        return {"valid": False, "status_code": response.status_code, "details": details}
+
     def publish(
         self,
         *,
@@ -168,38 +269,19 @@ class MercadoLivreMarketplaceConnector:
     ) -> PublishResult:
         if not self.app_configured():
             raise RuntimeError("Mercado Livre ainda não configurado com credenciais da aplicação.")
-        required = {
-            "access_token": access_token,
-            "category_id": category_id,
-            "family_name": family_name,
-            "condition": condition,
-            "listing_type_id": listing_type_id,
-            "pictures": pictures,
-            "attributes": attributes,
-        }
-        missing = [key for key, value in required.items() if value is None or value == [] or value == ""]
-        if missing:
-            raise ValueError("Campos obrigatórios ausentes para o Mercado Livre: " + ", ".join(missing))
-
-        item: dict[str, Any] = {
-            "family_name": family_name,
-            "category_id": category_id,
-            "price": price,
-            "currency_id": currency_id,
-            "buying_mode": "buy_it_now",
-            "listing_type_id": listing_type_id,
-            "condition": condition,
-            "pictures": pictures,
-            "attributes": attributes,
-        }
-        path = "/items"
-        if stock_locations:
-            item["stock_locations"] = stock_locations
-            path = "/items/multiwarehouse"
-        elif available_quantity is not None:
-            item["available_quantity"] = available_quantity
-        else:
-            raise ValueError("Informe available_quantity ou stock_locations")
+        path, item = self._build_item_payload(
+            price=price,
+            access_token=access_token,
+            category_id=category_id,
+            family_name=family_name,
+            condition=condition,
+            currency_id=currency_id,
+            listing_type_id=listing_type_id,
+            available_quantity=available_quantity,
+            pictures=pictures,
+            attributes=attributes,
+            stock_locations=stock_locations,
+        )
         headers = {**self._headers(access_token), "Content-Type": "application/json"}
         response = httpx.post(
             self.api_base + path,
@@ -225,4 +307,3 @@ class MercadoLivreMarketplaceConnector:
             status=str(created.get("status") or "published"),
             user_product_id=created.get("user_product_id"),
         )
-

@@ -409,7 +409,10 @@ async function loadMeliCategoryRequirements(){
   if(!account || !categoryId) return toast('Informe uma categoria MLB.');
   try{
     const data = await api('/api/marketplaces/mercadolivre/accounts/'+account.id+'/categories/'+encodeURIComponent(categoryId));
-    const required = data.attributes.filter(a => a.tags && a.tags.required);
+    const selectedCondition = $('#listingCondition').value;
+    const required = data.attributes.filter(a =>
+      a.tags && (a.tags.required || (selectedCondition === 'new' && a.tags.new_required))
+    );
     $('#listingRequirements').innerHTML = '<strong>'+esc(data.category.name)+'</strong><br>Atributos obrigatórios: '+(required.map(a => esc(a.id)+' — '+esc(a.name)).join(', ') || 'nenhum marcado') + '<br>Condições: '+esc((data.category.settings.item_conditions || []).join(', '));
     if(!data.user_product_seller){
       $('#listingRequirements').innerHTML += '<br><strong>Atenção:</strong> esta conta ainda não possui a tag user_product_seller.';
@@ -431,6 +434,19 @@ async function loadMeliCategoryRequirements(){
     const current = (() => { try{return JSON.parse($('#listingAttributes').value || '[]')}catch(_){return []} })();
     const currentIds = new Set(current.map(a => a.id));
     required.forEach(a => { if(!currentIds.has(a.id)) current.push({id:a.id,value_name:''}); });
+
+    // Para novas integrações o Mercado Livre recomenda ITEM_CONDITION em attributes.
+    if(!currentIds.has('ITEM_CONDITION')){
+      const conditionAttr = data.attributes.find(a => a.id === 'ITEM_CONDITION');
+      const targets = {
+        new:['novo','new','nuevo'],
+        used:['usado','used'],
+        not_specified:['nao especificado','not specified','no especificado']
+      }[selectedCondition] || [];
+      const normalize = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+      const match = conditionAttr && (conditionAttr.values || []).find(v => targets.includes(normalize(v.name)));
+      if(match && match.id) current.push({id:'ITEM_CONDITION',value_id:String(match.id)});
+    }
     $('#listingAttributes').value = JSON.stringify(current,null,2);
   }catch(e){ toast(e.message); }
 }

@@ -16,9 +16,10 @@ O fluxo real de **User Products** está implementado para o site brasileiro (MLB
 
 - sugestão de categoria por `/sites/MLB/domain_discovery/search`;
 - regras da categoria por `/categories/{category_id}`;
-- atributos por `/categories/{category_id}/attributes` e validação condicional;
+- atributos por `/categories/{category_id}/attributes`, incluindo `required` e `new_required`, e validação condicional;
 - tipos de anúncio disponíveis para o seller;
-- publicação por `POST /items` com `family_name`, condição, imagens, estoque e atributos;
+- pré-validação oficial por `POST /items/validate` para o fluxo padrão;
+- publicação por `POST /items` com `family_name`, condição do item via `ITEM_CONDITION` quando disponível, imagens, estoque e atributos;
 - detecção de sellers com `warehouse_management` e publicação por `POST /items/multiwarehouse` com `stock_locations`;
 - descrição em texto simples após a criação do item.
 
@@ -107,3 +108,14 @@ Antes de enviar o item, o backend consulta novamente categoria, atributos obriga
 - O PKCE verifier também fica criptografado durante o fluxo.
 - O refresh token do Mercado Livre é de uso único; o DropJoy salva o novo token devolvido em cada renovação.
 
+
+
+### Condição do produto
+
+Para novas integrações, o DropJoy prefere o atributo `ITEM_CONDITION` retornado pela própria categoria. O campo legado `condition` só permanece como fallback quando a categoria não expõe esse atributo. Os IDs não são inventados nem fixados no código: o valor é resolvido a partir dos valores permitidos pela categoria.
+
+### Gate de validação
+
+Antes do `POST /items` padrão, o DropJoy chama `POST /items/validate`. HTTP 204 é tratado como payload válido; qualquer rejeição impede a publicação e a mensagem do Mercado Livre fica disponível na listagem.
+
+Para sellers com `warehouse_management`, a criação ocorre por `POST /items/multiwarehouse`. Como a documentação pública não define um `/items/validate` equivalente específico para esse contrato, o DropJoy mantém as validações de categoria, atributos condicionais, tipo de anúncio e depósitos e deixa a API de criação fazer a validação final do estoque multi-origem.
