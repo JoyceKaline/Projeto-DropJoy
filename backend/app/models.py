@@ -16,8 +16,10 @@ class User(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     tenant_id: Mapped[int] = mapped_column(ForeignKey("tenants.id"), index=True)
     name: Mapped[str] = mapped_column(String(120))
-    email: Mapped[str] = mapped_column(String(180), unique=True)
+    email: Mapped[str] = mapped_column(String(180), unique=True, index=True)
+    hashed_password: Mapped[str] = mapped_column(String(255))
     role: Mapped[str] = mapped_column(String(30), default="owner")
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
     tenant: Mapped[Tenant] = relationship(back_populates="users")
 
 class Supplier(Base):
@@ -71,5 +73,5 @@ class TenantSupplier(Base):
     tenant_id: Mapped[int] = mapped_column(ForeignKey("tenants.id"), index=True)
     supplier_id: Mapped[int] = mapped_column(ForeignKey("suppliers.id"), index=True)
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
-    mode: Mapped[str] = mapped_column(String(20), default="demo")  # demo | api
+    mode: Mapped[str] = mapped_column(String(20), default="demo")
     last_sync_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

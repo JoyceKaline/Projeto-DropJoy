@@ -3,14 +3,22 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     app_name: str = "DropJoy API"
-    app_version: str = "0.4.0"
+    app_version: str = "0.5.0"
+    environment: str = "development"
     database_url: str = "sqlite:///./dropjoy.db"
+    auto_create_schema: bool = True
+    seed_demo_data: bool = True
     cors_origins: str = "http://localhost:5500,http://127.0.0.1:5500"
+
+    jwt_secret_key: str = "dev-only-change-me"
+    jwt_algorithm: str = "HS256"
+    access_token_minutes: int = 480
+    demo_user_email: str = "joyce@demo.local"
+    demo_user_password: str = "dropjoy-demo"
+
     marketplace_percent_fee: float = 0.20
     marketplace_fixed_fee: float = 4.00
-    default_tenant_slug: str = "joyce-demo"
 
-    # Dropify: preencher somente quando houver credenciais/documentação homologada.
     dropify_enabled: bool = False
     dropify_base_url: str | None = None
     dropify_api_token: str | None = None
@@ -22,6 +30,10 @@ class Settings(BaseSettings):
     @property
     def origins(self) -> list[str]:
         return [x.strip() for x in self.cors_origins.split(",") if x.strip()]
+
+    def validate_runtime_security(self) -> None:
+        if self.environment.lower() not in {"development", "test"} and self.jwt_secret_key == "dev-only-change-me":
+            raise RuntimeError("JWT_SECRET_KEY precisa ser alterada fora do ambiente de desenvolvimento.")
 
 @lru_cache
 def get_settings() -> Settings:

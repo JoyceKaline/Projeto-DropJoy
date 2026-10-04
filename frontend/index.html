@@ -2,19 +2,35 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>DropJoy V4</title>
+<title>DropJoy V5</title>
 <style>
-:root{font-family:Inter,system-ui,sans-serif;color:#18202a;background:#f5f7fa}*{box-sizing:border-box}body{margin:0}.shell{display:grid;grid-template-columns:235px 1fr;min-height:100vh}aside{background:#101820;color:white;padding:28px 20px}.brand{font-size:28px;font-weight:800}.tag{opacity:.65;font-size:12px;margin:4px 0 30px}nav a{display:block;color:#dfe7ee;text-decoration:none;padding:11px 12px;border-radius:10px;margin:4px 0}nav a.active{background:#fff;color:#101820;font-weight:700}main{padding:32px;max-width:1280px;width:100%}h1{margin:0 0 5px}.sub{color:#697684;margin:0 0 25px}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.card,.panel{background:#fff;border:1px solid #e6e9ed;border-radius:16px;padding:18px}.metric{font-size:28px;font-weight:800;margin-top:7px}.muted{color:#778391;font-size:13px}.panel{margin-top:18px}.head{display:flex;justify-content:space-between;align-items:center;gap:12px}.grid{display:grid;grid-template-columns:1.25fr .75fr;gap:18px}.opp{display:grid;grid-template-columns:50px 1fr auto;gap:12px;align-items:center;padding:14px 0;border-bottom:1px solid #edf0f2}.score{height:46px;width:46px;border-radius:12px;background:#edf7ef;display:grid;place-items:center;font-weight:800}.money{text-align:right}.btn{border:0;border-radius:9px;padding:9px 12px;font-weight:700;cursor:pointer}.primary{background:#101820;color:white}.secondary{background:#eef2f5;color:#18202a}.offer{padding:13px;border:1px solid #e5e9ed;border-radius:12px;margin:10px 0}.best{outline:2px solid #202b36}.row{display:flex;justify-content:space-between;gap:10px}.history{font-size:12px;color:#697684;margin-top:7px}.warning{background:#fff8e7;padding:10px;border-radius:10px;font-size:12px;margin-top:12px}.integrations{display:grid;grid-template-columns:1fr 1fr;gap:10px}.integration{border:1px solid #e5e9ed;border-radius:12px;padding:14px}.pill{display:inline-block;padding:4px 8px;border-radius:999px;font-size:11px;font-weight:800;background:#eef2f5}.ok{background:#e9f8ee}.off{background:#fff0e7}.statusline{display:flex;align-items:center;justify-content:space-between;gap:10px}.toast{font-size:12px;margin-top:10px;min-height:18px}@media(max-width:900px){.shell{display:block}aside{padding:18px}nav{display:flex;overflow:auto}.brand,.tag{display:inline-block;margin-right:12px}.metrics{grid-template-columns:1fr 1fr}.grid{grid-template-columns:1fr}main{padding:18px}}@media(max-width:560px){.metrics,.integrations{grid-template-columns:1fr}.opp{grid-template-columns:44px 1fr}.money{grid-column:2;text-align:left}}
+:root{font-family:Inter,system-ui,sans-serif;color:#18202a;background:#f5f7fa}*{box-sizing:border-box}body{margin:0}.hidden{display:none!important}.shell{display:grid;grid-template-columns:235px 1fr;min-height:100vh}aside{background:#101820;color:white;padding:28px 20px}.brand{font-size:28px;font-weight:800}.tag{opacity:.65;font-size:12px;margin:4px 0 30px}nav a{display:block;color:#dfe7ee;text-decoration:none;padding:11px 12px;border-radius:10px;margin:4px 0}nav a.active{background:#fff;color:#101820;font-weight:700}main{padding:32px;max-width:1280px;width:100%}h1{margin:0 0 5px}.sub{color:#697684;margin:0 0 25px}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.card,.panel{background:#fff;border:1px solid #e6e9ed;border-radius:16px;padding:18px}.metric{font-size:28px;font-weight:800;margin-top:7px}.muted{color:#778391;font-size:13px}.panel{margin-top:18px}.head{display:flex;justify-content:space-between;align-items:center;gap:12px}.grid{display:grid;grid-template-columns:1.25fr .75fr;gap:18px}.opp{display:grid;grid-template-columns:50px 1fr auto;gap:12px;align-items:center;padding:14px 0;border-bottom:1px solid #edf0f2}.score{height:46px;width:46px;border-radius:12px;background:#edf7ef;display:grid;place-items:center;font-weight:800}.money{text-align:right}.btn{border:0;border-radius:9px;padding:9px 12px;font-weight:700;cursor:pointer}.primary{background:#101820;color:white}.secondary{background:#eef2f5;color:#18202a}.offer{padding:13px;border:1px solid #e5e9ed;border-radius:12px;margin:10px 0}.best{outline:2px solid #202b36}.row{display:flex;justify-content:space-between;gap:10px}.history{font-size:12px;color:#697684;margin-top:7px}.warning{background:#fff8e7;padding:10px;border-radius:10px;font-size:12px;margin-top:12px}.integrations{display:grid;grid-template-columns:1fr 1fr;gap:10px}.integration{border:1px solid #e5e9ed;border-radius:12px;padding:14px}.pill{display:inline-block;padding:4px 8px;border-radius:999px;font-size:11px;font-weight:800;background:#eef2f5}.ok{background:#e9f8ee}.off{background:#fff0e7}.statusline{display:flex;align-items:center;justify-content:space-between;gap:10px}.toast{font-size:12px;margin-top:10px;min-height:18px}.userbox{margin-top:28px;padding-top:18px;border-top:1px solid #2b3640;font-size:12px}.login-wrap{min-height:100vh;display:grid;place-items:center;padding:20px;background:#f5f7fa}.login-card{width:min(430px,100%);background:white;border:1px solid #e4e8ec;border-radius:20px;padding:30px;box-shadow:0 20px 50px rgba(16,24,32,.08)}.login-card h1{font-size:32px}.field{margin:16px 0}.field label{display:block;font-size:13px;font-weight:700;margin-bottom:6px}.field input{width:100%;padding:12px 13px;border:1px solid #d8dde2;border-radius:10px;font:inherit}.login-error{color:#a42525;font-size:13px;min-height:20px}.demo-note{font-size:12px;color:#697684;background:#f5f7fa;border-radius:10px;padding:10px;margin-top:14px}@media(max-width:900px){.shell{display:block}aside{padding:18px}nav{display:flex;overflow:auto}.brand,.tag{display:inline-block;margin-right:12px}.metrics{grid-template-columns:1fr 1fr}.grid{grid-template-columns:1fr}main{padding:18px}.userbox{margin-top:12px}}@media(max-width:560px){.metrics,.integrations{grid-template-columns:1fr}.opp{grid-template-columns:44px 1fr}.money{grid-column:2;text-align:left}}
 </style>
 </head>
 <body>
-<div class="shell">
-<aside><div class="brand">DropJoy</div><div class="tag">Encontre. Analise. Venda.</div><nav><a class="active">🔥 Radar</a><a>📦 Produtos</a><a>🏭 Fornecedores</a><a>🤖 DropJoy AI</a><a>🛒 Marketplaces</a><a>💰 Financeiro</a></nav></aside>
+<section id="loginView" class="login-wrap">
+  <form class="login-card" onsubmit="login(event)">
+    <h1>DropJoy</h1>
+    <p class="sub">Entre para acessar seu Radar de Oportunidades.</p>
+    <div class="field"><label for="email">E-mail</label><input id="email" type="email" autocomplete="username" value="joyce@demo.local" required></div>
+    <div class="field"><label for="password">Senha</label><input id="password" type="password" autocomplete="current-password" required></div>
+    <button class="btn primary" style="width:100%" type="submit">Entrar</button>
+    <div id="loginError" class="login-error"></div>
+    <div class="demo-note">Modo local de demonstração: use a senha definida em <code>DEMO_USER_PASSWORD</code>. O valor padrão do <code>.env.example</code> é apenas para desenvolvimento.</div>
+  </form>
+</section>
+
+<div id="appView" class="shell hidden">
+<aside>
+  <div class="brand">DropJoy</div><div class="tag">Encontre. Analise. Venda.</div>
+  <nav><a class="active">🔥 Radar</a><a>📦 Produtos</a><a>🏭 Fornecedores</a><a>🤖 DropJoy AI</a><a>🛒 Marketplaces</a><a>💰 Financeiro</a></nav>
+  <div class="userbox"><div id="userName">—</div><div id="userEmail" style="opacity:.65;margin:4px 0 10px">—</div><button class="btn secondary" onclick="logout()">Sair</button></div>
+</aside>
 <main>
 <h1>Radar de Oportunidades</h1><p class="sub">Compare fornecedores e priorize produtos por margem, estoque, prazo e confiabilidade.</p>
 <section id="metrics" class="metrics"></section>
 <div class="grid">
-<section class="panel"><div class="head"><h2>Melhores oportunidades</h2><span class="muted">V4 · tenant demo</span></div><div id="opps">Carregando...</div></section>
+<section class="panel"><div class="head"><h2>Melhores oportunidades</h2><span class="muted">V5 · JWT</span></div><div id="opps">Carregando...</div></section>
 <section>
 <div class="panel" style="margin-top:0"><div class="head"><h2>Detalhe do produto</h2></div><div id="detail" class="muted">Clique em “Comparar” para ver as ofertas.</div></div>
 <div class="panel"><div class="head"><h2>Integrações</h2><button class="btn secondary" onclick="syncDemo()">Sincronizar demo</button></div><div id="integrations" class="integrations"></div><div id="syncmsg" class="toast muted"></div></div>
@@ -24,13 +40,64 @@
 </div>
 <script>
 const API='http://127.0.0.1:8000';
-const HEADERS={'X-Tenant-Slug':'joyce-demo'};
+const TOKEN_KEY='dropjoy_access_token';
 const brl=n=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(n);
-async function api(path,opts={}){const r=await fetch(API+path,{...opts,headers:{...HEADERS,...(opts.headers||{})}});if(!r.ok){let x={};try{x=await r.json()}catch{};throw new Error(x.detail||('HTTP '+r.status))}return r.json()}
-async function load(){try{const d=await api('/api/dashboard');const m=d.metrics;document.querySelector('#metrics').innerHTML=[['Produtos',m.products],['Oportunidades',m.opportunities],['Fornecedores',m.suppliers],['Margem média',m.average_margin+'%']].map(x=>`<div class="card"><div class="muted">${x[0]}</div><div class="metric">${x[1]}</div></div>`).join('');document.querySelector('#opps').innerHTML=d.opportunities.map(o=>`<div class="opp"><div class="score">${o.score}</div><div><b>${o.product}</b><div class="muted">${o.category} · melhor: ${o.supplier} · ${o.offers_count} ofertas</div><button class="btn primary" onclick="detail(${o.product_id})">Comparar</button></div><div class="money"><b>${brl(o.profit)}</b><div class="muted">${o.margin}% margem</div></div></div>`).join('');await loadIntegrations()}catch(e){document.querySelector('#opps').innerHTML='API indisponível. Inicie o backend conforme o README.'}}
-async function detail(id){const p=await api('/api/products/'+id);document.querySelector('#detail').innerHTML=`<h3>${p.name}</h3><div class="muted">Venda sugerida: ${brl(p.sale_price)} · concorrência ${p.competition_score}/100</div><p><b>Recomendação: ${p.recommendation}</b></p>${p.offers.map((o,i)=>`<div class="offer ${i===0?'best':''}"><div class="row"><b>${o.supplier}</b><b>Score ${o.score}</b></div><div class="row"><span>Custo ${brl(o.cost)}</span><span>Estoque ${o.stock}</span></div><div class="row"><span>Lucro ${brl(o.profit)}</span><span>${o.margin}%</span></div><div class="history">Histórico: ${o.history.map(h=>`${new Date(h.captured_at).toLocaleDateString('pt-BR')} ${brl(h.cost)} / ${h.stock} un.`).join(' → ')}</div></div>`).join('')}<div class="warning">Taxas da demo: ${p.fee_assumption.percent}% + ${brl(p.fee_assumption.fixed)}. Não são apresentadas como tarifas oficiais atuais.</div>`}
-async function loadIntegrations(){const d=await api('/api/integrations');document.querySelector('#integrations').innerHTML=d.integrations.map(i=>`<div class="integration"><div class="statusline"><b>${i.name}</b><span class="pill ${i.configured?'ok':'off'}">${i.configured?'pronta':'demo'}</span></div><div class="muted">Modo: ${i.mode} · ${i.integration_type.toUpperCase()}</div><div class="muted">Última sync: ${i.last_sync_at?new Date(i.last_sync_at).toLocaleString('pt-BR'):'—'}</div></div>`).join('')}
-async function syncDemo(){const el=document.querySelector('#syncmsg');el.textContent='Sincronizando dados de demonstração...';try{const r=await api('/api/integrations/demo/sync',{method:'POST'});el.textContent=`${r.offers_updated} ofertas atualizadas em modo demo.`;await load();}catch(e){el.textContent=e.message}}
-load();
+
+function token(){return sessionStorage.getItem(TOKEN_KEY)}
+function authHeaders(){return token()?{'Authorization':'Bearer '+token()}:{}}
+async function api(path,opts={}){
+  const r=await fetch(API+path,{...opts,headers:{'Content-Type':'application/json',...authHeaders(),...(opts.headers||{})}});
+  if(r.status===401){logout(false);throw new Error('Sua sessão expirou. Entre novamente.')}
+  if(!r.ok){let x={};try{x=await r.json()}catch{};throw new Error(x.detail||('HTTP '+r.status))}
+  return r.json()
+}
+async function login(e){
+  e.preventDefault();
+  const error=document.querySelector('#loginError'); error.textContent='';
+  try{
+    const body={email:document.querySelector('#email').value,password:document.querySelector('#password').value};
+    const r=await fetch(API+'/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const d=await r.json();
+    if(!r.ok) throw new Error(d.detail||'Não foi possível entrar.');
+    sessionStorage.setItem(TOKEN_KEY,d.access_token);
+    showApp(d.user);
+    await load();
+  }catch(err){error.textContent=err.message}
+}
+function showApp(user){
+  document.querySelector('#loginView').classList.add('hidden');
+  document.querySelector('#appView').classList.remove('hidden');
+  document.querySelector('#userName').textContent=user.name;
+  document.querySelector('#userEmail').textContent=user.email;
+}
+function logout(show=true){
+  sessionStorage.removeItem(TOKEN_KEY);
+  document.querySelector('#appView').classList.add('hidden');
+  document.querySelector('#loginView').classList.remove('hidden');
+  if(show) document.querySelector('#loginError').textContent='';
+}
+async function boot(){
+  if(!token()) return;
+  try{const me=await api('/api/auth/me');showApp(me);await load()}catch(e){document.querySelector('#loginError').textContent=e.message}
+}
+async function load(){
+  const d=await api('/api/dashboard');const m=d.metrics;
+  document.querySelector('#metrics').innerHTML=[['Produtos',m.products],['Oportunidades',m.opportunities],['Fornecedores',m.suppliers],['Margem média',m.average_margin+'%']].map(x=>`<div class="card"><div class="muted">${x[0]}</div><div class="metric">${x[1]}</div></div>`).join('');
+  document.querySelector('#opps').innerHTML=d.opportunities.map(o=>`<div class="opp"><div class="score">${o.score}</div><div><b>${o.product}</b><div class="muted">${o.category} · melhor: ${o.supplier} · ${o.offers_count} ofertas</div><button class="btn primary" onclick="detail(${o.product_id})">Comparar</button></div><div class="money"><b>${brl(o.profit)}</b><div class="muted">${o.margin}% margem</div></div></div>`).join('');
+  await loadIntegrations();
+}
+async function detail(id){
+  const p=await api('/api/products/'+id);
+  document.querySelector('#detail').innerHTML=`<h3>${p.name}</h3><div class="muted">Venda sugerida: ${brl(p.sale_price)} · concorrência ${p.competition_score}/100</div><p><b>Recomendação: ${p.recommendation}</b></p>${p.offers.map((o,i)=>`<div class="offer ${i===0?'best':''}"><div class="row"><b>${o.supplier}</b><b>Score ${o.score}</b></div><div class="row"><span>Custo ${brl(o.cost)}</span><span>Estoque ${o.stock}</span></div><div class="row"><span>Lucro ${brl(o.profit)}</span><span>${o.margin}%</span></div><div class="history">Histórico: ${o.history.map(h=>`${new Date(h.captured_at).toLocaleDateString('pt-BR')} ${brl(h.cost)} / ${h.stock} un.`).join(' → ')}</div></div>`).join('')}<div class="warning">Taxas da demo: ${p.fee_assumption.percent}% + ${brl(p.fee_assumption.fixed)}. Não são apresentadas como tarifas oficiais atuais.</div>`;
+}
+async function loadIntegrations(){
+  const d=await api('/api/integrations');
+  document.querySelector('#integrations').innerHTML=d.integrations.map(i=>`<div class="integration"><div class="statusline"><b>${i.name}</b><span class="pill ${i.configured?'ok':'off'}">${i.configured?'pronta':'demo'}</span></div><div class="muted">Modo: ${i.mode} · ${i.integration_type.toUpperCase()}</div><div class="muted">Última sync: ${i.last_sync_at?new Date(i.last_sync_at).toLocaleString('pt-BR'):'—'}</div></div>`).join('');
+}
+async function syncDemo(){
+  const el=document.querySelector('#syncmsg');el.textContent='Sincronizando dados de demonstração...';
+  try{const r=await api('/api/integrations/demo/sync',{method:'POST'});el.textContent=`${r.offers_updated} ofertas atualizadas em modo demo.`;await load()}catch(e){el.textContent=e.message}
+}
+boot();
 </script>
 </body></html>

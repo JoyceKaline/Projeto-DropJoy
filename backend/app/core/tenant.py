@@ -1,15 +1,11 @@
-from fastapi import Header, HTTPException, Depends
-from sqlalchemy import select
-from sqlalchemy.orm import Session
-from ..db import get_db
+from fastapi import Depends
 from ..models import Tenant
-from .config import get_settings
+from .auth import get_current_tenant
 
-settings = get_settings()
+def current_tenant(tenant: Tenant = Depends(get_current_tenant)) -> Tenant:
+    """Compatibilidade com os routers existentes da V4.
 
-def current_tenant(x_tenant_slug: str | None = Header(default=None), session: Session = Depends(get_db)) -> Tenant:
-    slug = x_tenant_slug or settings.default_tenant_slug
-    tenant = session.scalar(select(Tenant).where(Tenant.slug == slug, Tenant.active.is_(True)))
-    if not tenant:
-        raise HTTPException(status_code=404, detail="Tenant não encontrado")
+    Na V5 o tenant vem do usuário autenticado pelo JWT, e não de cabeçalho enviado
+    pelo navegador.
+    """
     return tenant

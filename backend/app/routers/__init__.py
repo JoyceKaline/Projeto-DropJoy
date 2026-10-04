@@ -1,2 +1,2 @@
-from . import dashboard, products, suppliers, integrations
-__all__ = ["dashboard", "products", "suppliers", "integrations"]
+from . import auth, dashboard, products, suppliers, integrations
+__all__ = ["auth", "dashboard", "products", "suppliers", "integrations"]

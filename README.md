@@ -1,62 +1,25 @@
-# DropJoy V4
+# DropJoy V5
 
 **Encontre. Analise. Venda.**
 
-A V4 transforma o MVP em uma base mais próxima da arquitetura definitiva do repositório `Projeto-DropJoy`: backend modular, isolamento por tenant e camada de conectores de fornecedores.
+A V5 adiciona a primeira camada real de identidade e segurança do DropJoy: autenticação por e-mail/senha, senhas com hash Argon2, JWT e autorização do tenant pelo usuário autenticado.
 
-## O que entrou na V4
+## Destaques da V5
 
-- FastAPI modularizado em routers/services/connectors/core.
-- SQLAlchemy 2 com SQLite no modo demo e PostgreSQL configurável.
-- Estrutura multi-tenant inicial (`Tenant`, `User` e vínculo tenant-fornecedor).
-- Catálogo multi-fornecedor, comparação de ofertas, lucro/margem e DropJoy Score.
-- Histórico de preço/estoque persistido.
-- Sincronização demo que cria novos snapshots de custo/estoque.
-- Registro de integrações e status por fornecedor.
-- Adapter `DropifyConnector` seguro: prepara HTTP/configuração sem inventar endpoints ou schema.
-- `.env.example` sem segredos.
-- Frontend responsivo mostrando Radar, detalhe do produto e status das integrações.
-- Teste unitário básico do motor financeiro/score.
+- Login via `POST /api/auth/login`.
+- JWT com expiração configurável.
+- Senhas armazenadas com hash Argon2 via `pwdlib`.
+- `/api/auth/me` para sessão atual.
+- O tenant não é mais escolhido pelo navegador através de `X-Tenant-Slug`; ele é obtido do usuário autenticado.
+- Proteção dos endpoints de Dashboard, Produtos, Fornecedores e Integrações.
+- Alembic configurado com migration inicial.
+- Bloqueio de chave JWT padrão fora de desenvolvimento/teste.
+- Frontend com tela de login, sessão em `sessionStorage` e logout.
+- GitHub Actions executando os testes do backend em push/PR.
 
-## Estrutura
+## Rodar localmente no Windows
 
-```text
-Projeto-DropJoy/
-├─ backend/
-│  ├─ app/
-│  │  ├─ connectors/
-│  │  │  ├─ base.py
-│  │  │  ├─ demo.py
-│  │  │  ├─ dropify.py
-│  │  │  └─ registry.py
-│  │  ├─ core/
-│  │  │  ├─ config.py
-│  │  │  └─ tenant.py
-│  │  ├─ routers/
-│  │  │  ├─ dashboard.py
-│  │  │  ├─ integrations.py
-│  │  │  ├─ products.py
-│  │  │  └─ suppliers.py
-│  │  ├─ services/
-│  │  │  ├─ scoring.py
-│  │  │  └─ sync.py
-│  │  ├─ db.py
-│  │  ├─ models.py
-│  │  ├─ seed.py
-│  │  └─ main.py
-│  ├─ tests/
-│  │  └─ test_scoring.py
-│  ├─ .env.example
-│  └─ requirements.txt
-├─ frontend/
-│  └─ index.html
-├─ .gitignore
-└─ README.md
-```
-
-## Rodar no Windows
-
-### 1. Backend
+### Backend
 
 ```powershell
 cd backend
@@ -66,10 +29,9 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 
-API: `http://127.0.0.1:8000`
 Swagger: `http://127.0.0.1:8000/docs`
 
-### 2. Frontend
+### Frontend
 
 Em outro terminal:
 
@@ -80,38 +42,65 @@ python -m http.server 5500
 
 Abra `http://127.0.0.1:5500`.
 
-## Tenant demo
+### Login demo
 
-O frontend envia `X-Tenant-Slug: joyce-demo`. Esse cabeçalho é a primeira camada de isolamento de contas; **não substitui autenticação**. Login/JWT/OAuth entra no próximo marco antes de qualquer uso público.
+Com os valores padrão de desenvolvimento do `.env.example`:
+
+- E-mail: `joyce@demo.local`
+- Senha: `dropjoy-demo`
+
+Essas credenciais existem apenas para desenvolvimento local. Em qualquer ambiente publicado, desative `SEED_DEMO_DATA` e configure usuários reais.
+
+## Migração da V4 local para V5
+
+A V4 criava o SQLite diretamente, sem controle de migrations. Como esse banco continha apenas dados demo, a migração local mais segura é:
+
+1. Pare o backend.
+2. Exclua o arquivo local `backend/dropjoy.db`, caso exista.
+3. Suba novamente a V5 para recriar os dados demo; ou use Alembic em um banco limpo.
+
+Não faça isso em banco com dados reais.
+
+## Alembic
+
+Para usar migrations como fonte do schema:
+
+```powershell
+cd backend
+copy .env.example .env
+```
+
+No `.env`, ajuste:
+
+```env
+AUTO_CREATE_SCHEMA=false
+SEED_DEMO_DATA=false
+```
+
+Depois:
+
+```powershell
+alembic upgrade head
+```
+
+Em produção, migrations devem ser executadas antes da aplicação.
+
+## Segurança de produção
+
+Nunca publique o `.env`. Configure uma `JWT_SECRET_KEY` longa e aleatória. O backend se recusa a iniciar fora de `development/test` se a chave continuar como `dev-only-change-me`.
+
+A V5 usa access token. Refresh tokens, recuperação de senha, verificação de e-mail e MFA ficam para uma etapa posterior, antes de abrir cadastro público.
 
 ## Dropify
 
-A Dropify divulga oficialmente uma API JSON/REST capaz de trabalhar com produtos/categorias, preço e estoque por usuário, pedidos, frete, notas fiscais, etiquetas e webhooks. O acesso depende de cadastro/homologação e credenciais.
-
-Por isso a V4 **não inventa endpoints, autenticação nem formato de resposta**. O `DropifyConnector` fica desativado até que existam credenciais e o schema real da conta homologada possa ser mapeado.
-
-Variáveis reservadas:
-
-```env
-DROPIFY_ENABLED=false
-DROPIFY_BASE_URL=
-DROPIFY_API_TOKEN=
-DROPIFY_PRODUCTS_PATH=
-DROPIFY_STOCK_PATH=
-```
-
-Nunca coloque tokens no GitHub.
-
-## Taxas do marketplace
-
-Os valores `20% + R$4` continuam apenas como **premissas demonstrativas configuráveis**. Não são apresentadas como tarifas oficiais atuais da Shopee.
+O conector continua propositalmente sem endpoints inventados. Ele só será ativado depois que tivermos credenciais/documentação homologada da Dropify.
 
 ## Próximos marcos
 
-1. Autenticação real e autorização por tenant.
-2. Alembic para migrations.
-3. Homologação/credenciais Dropify e mapeamento do payload real.
-4. Sync real de catálogo/preço/estoque + webhooks.
+1. Cadastro/admin de usuários e papéis.
+2. Refresh token + recuperação de senha.
+3. Isolamento tenant-aware dos dados privados futuros.
+4. Homologação da Dropify e sync real.
 5. Conector DSLite.
-6. DropJoy AI para título, descrição e análise de anúncio.
-7. Integração autorizada com Shopee e demais marketplaces.
+6. DropJoy AI.
+7. Integração autorizada com Shopee.
