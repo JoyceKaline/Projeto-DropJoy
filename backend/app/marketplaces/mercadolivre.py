@@ -1,4 +1,5 @@
 import httpx
+from typing import Any
 from urllib.parse import urlencode
 from .base import PublishResult
 from ..core.config import get_settings
@@ -77,10 +78,151 @@ class MercadoLivreMarketplaceConnector:
         response.raise_for_status()
         return response.json()
 
-    def publish(self, *, title: str, description: str, price: float, external_account_id: str) -> PublishResult:
+    @staticmethod
+    def _headers(access_token: str) -> dict[str, str]:
+        return {
+            "Authorization": f"Bearer {access_token}",
+            "Accept": "application/json",
+        }
+
+    def predict_categories(self, *, query: str, access_token: str, limit: int = 4) -> list[dict]:
+        response = httpx.get(
+            self.api_base + "/sites/MLB/domain_discovery/search",
+            headers=self._headers(access_token),
+            params={"q": query, "limit": limit},
+            timeout=30.0,
+        )
+        response.raise_for_status()
+        return response.json()
+
+    def category(self, *, category_id: str, access_token: str) -> dict:
+        response = httpx.get(
+            self.api_base + f"/categories/{category_id}",
+            headers=self._headers(access_token),
+            timeout=30.0,
+        )
+        response.raise_for_status()
+        return response.json()
+
+    def category_attributes(self, *, category_id: str, access_token: str) -> list[dict]:
+        response = httpx.get(
+            self.api_base + f"/categories/{category_id}/attributes",
+            headers=self._headers(access_token),
+            timeout=30.0,
+        )
+        response.raise_for_status()
+        return response.json()
+
+    def available_listing_types(
+        self, *, external_account_id: str, category_id: str, access_token: str
+    ) -> list[dict]:
+        response = httpx.get(
+            self.api_base + f"/users/{external_account_id}/available_listing_types",
+            headers=self._headers(access_token),
+            params={"category_id": category_id},
+            timeout=30.0,
+        )
+        response.raise_for_status()
+        return response.json().get("available", [])
+
+    def stock_locations(self, *, external_account_id: str, access_token: str) -> list[dict]:
+        response = httpx.get(
+            self.api_base + f"/users/{external_account_id}/stores/search",
+            headers=self._headers(access_token),
+            params={"tags": "stock_location"},
+            timeout=30.0,
+        )
+        response.raise_for_status()
+        return response.json().get("results", [])
+
+    def conditional_required_attributes(
+        self, *, category_id: str, item: dict[str, Any], access_token: str
+    ) -> list[dict]:
+        response = httpx.post(
+            self.api_base + f"/categories/{category_id}/attributes/conditional",
+            headers={**self._headers(access_token), "Content-Type": "application/json"},
+            json=item,
+            timeout=30.0,
+        )
+        response.raise_for_status()
+        return response.json().get("required_attributes", [])
+
+    def publish(
+        self,
+        *,
+        title: str,
+        description: str,
+        price: float,
+        external_account_id: str,
+        access_token: str | None = None,
+        category_id: str | None = None,
+        family_name: str | None = None,
+        condition: str | None = None,
+        currency_id: str = "BRL",
+        listing_type_id: str | None = None,
+        available_quantity: int | None = None,
+        pictures: list[dict[str, str]] | None = None,
+        attributes: list[dict[str, str]] | None = None,
+        stock_locations: list[dict[str, Any]] | None = None,
+        **_: Any,
+    ) -> PublishResult:
         if not self.app_configured():
             raise RuntimeError("Mercado Livre ainda não configurado com credenciais da aplicação.")
-        raise NotImplementedError(
-            "A publicação real no Mercado Livre aguarda o fluxo User Products e o mapeamento "
-            "de categoria, atributos obrigatórios, condição, imagens e estoque."
+        required = {
+            "access_token": access_token,
+            "category_id": category_id,
+            "family_name": family_name,
+            "condition": condition,
+            "listing_type_id": listing_type_id,
+            "pictures": pictures,
+            "attributes": attributes,
+        }
+        missing = [key for key, value in required.items() if value is None or value == [] or value == ""]
+        if missing:
+            raise ValueError("Campos obrigatórios ausentes para o Mercado Livre: " + ", ".join(missing))
+
+        item: dict[str, Any] = {
+            "family_name": family_name,
+            "category_id": category_id,
+            "price": price,
+            "currency_id": currency_id,
+            "buying_mode": "buy_it_now",
+            "listing_type_id": listing_type_id,
+            "condition": condition,
+            "pictures": pictures,
+            "attributes": attributes,
+        }
+        path = "/items"
+        if stock_locations:
+            item["stock_locations"] = stock_locations
+            path = "/items/multiwarehouse"
+        elif available_quantity is not None:
+            item["available_quantity"] = available_quantity
+        else:
+            raise ValueError("Informe available_quantity ou stock_locations")
+        headers = {**self._headers(access_token), "Content-Type": "application/json"}
+        response = httpx.post(
+            self.api_base + path,
+            headers=headers,
+            json=item,
+            timeout=30.0,
         )
+        response.raise_for_status()
+        created = response.json()
+        item_id = str(created["id"])
+
+        if description.strip():
+            description_response = httpx.post(
+                self.api_base + f"/items/{item_id}/description",
+                headers=headers,
+                json={"plain_text": description.strip()},
+                timeout=30.0,
+            )
+            description_response.raise_for_status()
+
+        return PublishResult(
+            external_listing_id=item_id,
+            status=str(created.get("status") or "published"),
+            user_product_id=created.get("user_product_id"),
+        )
+

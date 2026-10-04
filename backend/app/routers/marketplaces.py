@@ -1,5 +1,7 @@
 from datetime import datetime, timezone
+import json
 import secrets
+from typing import Literal
 from urllib.parse import urlencode
 
 import httpx
@@ -45,12 +47,62 @@ class ListingCreate(BaseModel):
     account_id: int
     product_id: int
     price: float = Field(gt=0)
+    category_id: str | None = Field(default=None, min_length=4, max_length=40)
+    family_name: str | None = Field(default=None, min_length=2, max_length=180)
+    condition: Literal["new", "used", "not_specified"] | None = None
+    currency_id: str = Field(default="BRL", min_length=3, max_length=10)
+    listing_type_id: str | None = Field(default=None, min_length=2, max_length=40)
+    available_quantity: int | None = Field(default=None, ge=0)
+    pictures: list[str] = Field(default_factory=list, max_length=12)
+    attributes: list[dict[str, str | None]] = Field(default_factory=list, max_length=100)
+    stock_locations: list[dict[str, str | int]] = Field(default_factory=list, max_length=50)
 
 VALID_PROVIDERS = {"demo", "shopee", "mercadolivre"}
 
 def _frontend_redirect(**params) -> RedirectResponse:
     base = settings.frontend_base_url.rstrip("/") + "/"
     return RedirectResponse(base + "?" + urlencode(params), status_code=302)
+
+
+def _meli_account(session: Session, *, account_id: int, tenant_id: int) -> MarketplaceAccount:
+    account = session.scalar(select(MarketplaceAccount).where(
+        MarketplaceAccount.id == account_id,
+        MarketplaceAccount.tenant_id == tenant_id,
+        MarketplaceAccount.provider == "mercadolivre",
+    ))
+    if not account:
+        raise HTTPException(404, "Conta Mercado Livre não encontrada")
+    return account
+
+
+def _meli_access_token(session: Session, account: MarketplaceAccount) -> str:
+    credential = credential_for_account(session, account.id)
+    if not credential:
+        raise HTTPException(409, "Conecte a conta do Mercado Livre antes de continuar")
+    if credential_status(credential)["expired"]:
+        current_refresh = refresh_token(credential)
+        if not current_refresh:
+            raise HTTPException(409, "Token expirado; reconecte a conta do Mercado Livre")
+        connector = marketplace_for("mercadolivre")
+        try:
+            token_data = connector.refresh_access_token(refresh_token=current_refresh)
+            credential = upsert_oauth_credential(session, account_id=account.id, token_data=token_data)
+        except httpx.HTTPError as exc:
+            raise HTTPException(502, "Não foi possível renovar o token do Mercado Livre") from exc
+    return access_token(credential)
+
+
+def _meli_http_error(exc: httpx.HTTPError) -> str:
+    if not isinstance(exc, httpx.HTTPStatusError):
+        return "Não foi possível comunicar com o Mercado Livre. Tente novamente."
+    try:
+        body = exc.response.json()
+    except ValueError:
+        return "O Mercado Livre rejeitou a solicitação."
+    message = body.get("message") or body.get("error") or "O Mercado Livre rejeitou a solicitação."
+    causes = body.get("cause") or []
+    details = [str(cause.get("message") or cause.get("code")) for cause in causes if isinstance(cause, dict)]
+    return (str(message) + (": " + "; ".join(details) if details else ""))[:2000]
 
 @router.get("")
 def overview(user: User = Depends(get_current_user), session: Session = Depends(get_db)):
@@ -101,8 +153,72 @@ def overview(user: User = Depends(get_current_user), session: Session = Depends(
             "external_listing_id": item.external_listing_id,
             "status": item.status,
             "price": item.price,
+            "category_id": item.category_id,
+            "family_name": item.family_name,
+            "condition": item.condition,
+            "currency_id": item.currency_id,
+            "listing_type_id": item.listing_type_id,
+            "available_quantity": item.available_quantity,
+            "user_product_id": item.user_product_id,
+            "publication_error": item.publication_error,
             "published_at": item.published_at.isoformat() if item.published_at else None,
         } for item in listings],
+    }
+
+
+@router.get("/mercadolivre/accounts/{account_id}/categories/predict")
+def predict_mercadolivre_category(
+    account_id: int,
+    q: str = Query(min_length=2, max_length=180),
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_db),
+):
+    account = _meli_account(session, account_id=account_id, tenant_id=user.tenant_id)
+    connector = marketplace_for("mercadolivre")
+    try:
+        return {"results": connector.predict_categories(
+            query=q,
+            access_token=_meli_access_token(session, account),
+        )}
+    except httpx.HTTPError as exc:
+        raise HTTPException(502, _meli_http_error(exc)) from exc
+
+
+@router.get("/mercadolivre/accounts/{account_id}/categories/{category_id}")
+def mercadolivre_category_requirements(
+    account_id: int,
+    category_id: str,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_db),
+):
+    account = _meli_account(session, account_id=account_id, tenant_id=user.tenant_id)
+    connector = marketplace_for("mercadolivre")
+    token = _meli_access_token(session, account)
+    try:
+        category = connector.category(category_id=category_id, access_token=token)
+        attributes = connector.category_attributes(category_id=category_id, access_token=token)
+        listing_types = connector.available_listing_types(
+            external_account_id=account.external_account_id,
+            category_id=category_id,
+            access_token=token,
+        )
+        profile = connector.user_info(access_token=token)
+        seller_tags = profile.get("tags") or []
+        user_product_seller = "user_product_seller" in seller_tags
+        warehouse_management = "warehouse_management" in seller_tags
+        stock_locations = connector.stock_locations(
+            external_account_id=account.external_account_id,
+            access_token=token,
+        ) if warehouse_management else []
+    except httpx.HTTPError as exc:
+        raise HTTPException(502, _meli_http_error(exc)) from exc
+    return {
+        "category": category,
+        "attributes": attributes,
+        "listing_types": listing_types,
+        "user_product_seller": user_product_seller,
+        "warehouse_management": warehouse_management,
+        "stock_locations": stock_locations,
     }
 
 @router.post("/accounts", status_code=201)
@@ -358,12 +474,49 @@ def create_listing(
     ))
     if exists:
         raise HTTPException(409, "Já existe uma listagem desse produto nessa conta")
+    if account.provider == "mercadolivre":
+        required = {
+            "category_id": payload.category_id,
+            "family_name": payload.family_name,
+            "condition": payload.condition,
+            "listing_type_id": payload.listing_type_id,
+            "available_quantity": payload.available_quantity,
+            "pictures": payload.pictures,
+            "attributes": payload.attributes,
+        }
+        missing = [name for name, value in required.items() if value is None or value == [] or value == ""]
+        if missing:
+            raise HTTPException(422, "Campos obrigatórios do Mercado Livre: " + ", ".join(missing))
+        if not payload.category_id.startswith("MLB"):
+            raise HTTPException(422, "A categoria deve pertencer ao site brasileiro (prefixo MLB)")
+        if any(not picture.startswith(("https://", "http://")) for picture in payload.pictures):
+            raise HTTPException(422, "As imagens devem usar URLs HTTP ou HTTPS públicas")
+        for attribute in payload.attributes:
+            if not attribute.get("id") or not (attribute.get("value_id") or attribute.get("value_name")):
+                raise HTTPException(422, "Cada atributo precisa de id e value_id ou value_name")
+        for location in payload.stock_locations:
+            if not location.get("store_id") or not location.get("network_node_id"):
+                raise HTTPException(422, "Cada depósito precisa de store_id e network_node_id")
+            try:
+                if int(location.get("quantity", -1)) < 0:
+                    raise ValueError
+            except (TypeError, ValueError):
+                raise HTTPException(422, "A quantidade de cada depósito deve ser zero ou maior")
     listing = MarketplaceListing(
         tenant_id=user.tenant_id,
         marketplace_account_id=account.id,
         product_id=product.id,
         status="draft",
         price=payload.price,
+        category_id=payload.category_id,
+        family_name=payload.family_name,
+        condition=payload.condition,
+        currency_id=payload.currency_id.upper(),
+        listing_type_id=payload.listing_type_id,
+        available_quantity=payload.available_quantity,
+        pictures_json=json.dumps(payload.pictures, ensure_ascii=False),
+        attributes_json=json.dumps(payload.attributes, ensure_ascii=False),
+        stock_locations_json=json.dumps(payload.stock_locations, ensure_ascii=False),
     )
     session.add(listing)
     session.commit()
@@ -395,24 +548,129 @@ def publish_listing(
     connector = marketplace_for(account.provider) if account else None
     if not connector:
         raise HTTPException(400, "Conector de marketplace inexistente")
-    if account.provider == "mercadolivre" and not credential_for_account(session, account.id):
-        raise HTTPException(409, "Conecte a conta do Mercado Livre antes de publicar")
     if not connector.configured():
         raise HTTPException(409, "Marketplace ainda não está configurado com credenciais reais")
 
     base = local_listing(product)
+    publish_options = {}
+    if account.provider == "mercadolivre":
+        token = _meli_access_token(session, account)
+        pictures = [{"source": value} for value in json.loads(listing.pictures_json or "[]")]
+        attributes = json.loads(listing.attributes_json or "[]")
+        stock_locations = json.loads(listing.stock_locations_json or "[]")
+        provided_attribute_ids = {attribute["id"] for attribute in attributes}
+        try:
+            category = connector.category(category_id=listing.category_id, access_token=token)
+            settings_data = category.get("settings") or {}
+            if not settings_data.get("listing_allowed"):
+                raise HTTPException(422, "A categoria selecionada não permite publicações")
+            if listing.condition not in (settings_data.get("item_conditions") or []):
+                raise HTTPException(422, "A condição não é permitida para essa categoria")
+            max_pictures = settings_data.get("max_pictures_per_item")
+            if max_pictures and len(pictures) > max_pictures:
+                raise HTTPException(422, f"A categoria aceita no máximo {max_pictures} imagens")
+
+            category_attributes = connector.category_attributes(
+                category_id=listing.category_id, access_token=token
+            )
+            required_ids = {
+                attribute["id"] for attribute in category_attributes
+                if (attribute.get("tags") or {}).get("required")
+            }
+            missing_ids = sorted(required_ids - provided_attribute_ids)
+            if missing_ids:
+                raise HTTPException(422, "Atributos obrigatórios ausentes: " + ", ".join(missing_ids))
+
+            available_types = connector.available_listing_types(
+                external_account_id=account.external_account_id,
+                category_id=listing.category_id,
+                access_token=token,
+            )
+            available_type_ids = {entry["id"] for entry in available_types}
+            if listing.listing_type_id not in available_type_ids:
+                raise HTTPException(422, "Tipo de anúncio indisponível para este seller e categoria")
+
+            profile = connector.user_info(access_token=token)
+            seller_tags = profile.get("tags") or []
+            if "user_product_seller" not in seller_tags:
+                raise HTTPException(
+                    422,
+                    "Este seller ainda não está habilitado pelo Mercado Livre para User Products.",
+                )
+            warehouse_management = "warehouse_management" in seller_tags
+            if warehouse_management and not stock_locations:
+                raise HTTPException(
+                    422,
+                    "Este seller usa estoque multi-origem; informe stock_locations dos depósitos.",
+                )
+            if not warehouse_management:
+                stock_locations = []
+
+            conditional_item = {
+                "family_name": listing.family_name,
+                "category_id": listing.category_id,
+                "price": listing.price,
+                "currency_id": listing.currency_id,
+                "buying_mode": "buy_it_now",
+                "listing_type_id": listing.listing_type_id,
+                "condition": listing.condition,
+                "pictures": pictures,
+                "attributes": attributes,
+            }
+            if warehouse_management:
+                conditional_item["stock_locations"] = stock_locations
+            else:
+                conditional_item["available_quantity"] = listing.available_quantity
+            conditional = connector.conditional_required_attributes(
+                category_id=listing.category_id,
+                item=conditional_item,
+                access_token=token,
+            )
+            conditional_ids = {attribute["id"] for attribute in conditional}
+            missing_conditional = sorted(conditional_ids - provided_attribute_ids)
+            if missing_conditional:
+                raise HTTPException(
+                    422,
+                    "Atributos condicionais obrigatórios ausentes: " + ", ".join(missing_conditional),
+                )
+        except httpx.HTTPError as exc:
+            message = _meli_http_error(exc)
+            listing.publication_error = message
+            session.commit()
+            raise HTTPException(502, message) from exc
+
+        publish_options = {
+            "access_token": token,
+            "category_id": listing.category_id,
+            "family_name": listing.family_name,
+            "condition": listing.condition,
+            "currency_id": listing.currency_id,
+            "listing_type_id": listing.listing_type_id,
+            "available_quantity": listing.available_quantity,
+            "pictures": pictures,
+            "attributes": attributes,
+            "stock_locations": stock_locations,
+        }
     try:
         result = connector.publish(
             title=base["title"],
             description=base["description"],
             price=listing.price,
             external_account_id=account.external_account_id,
+            **publish_options,
         )
-    except NotImplementedError as exc:
-        raise HTTPException(501, str(exc))
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    except httpx.HTTPError as exc:
+        message = _meli_http_error(exc)
+        listing.publication_error = message
+        session.commit()
+        raise HTTPException(502, message) from exc
 
     listing.external_listing_id = result.external_listing_id
+    listing.user_product_id = result.user_product_id
     listing.status = result.status
+    listing.publication_error = None
     listing.published_at = datetime.now(timezone.utc)
     session.commit()
     audit(
@@ -425,3 +683,4 @@ def publish_listing(
         details={"provider": account.provider},
     )
     return {"id": listing.id, "status": listing.status, "external_listing_id": listing.external_listing_id}
+

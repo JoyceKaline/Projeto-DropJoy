@@ -115,6 +115,17 @@ class MarketplaceListing(Base):
     external_listing_id: Mapped[str | None] = mapped_column(String(160), nullable=True)
     status: Mapped[str] = mapped_column(String(30), default="draft")
     price: Mapped[float] = mapped_column(Float)
+    category_id: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    family_name: Mapped[str | None] = mapped_column(String(180), nullable=True)
+    condition: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    currency_id: Mapped[str] = mapped_column(String(10), default="BRL")
+    listing_type_id: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    available_quantity: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    pictures_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    attributes_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    stock_locations_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    user_product_id: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    publication_error: Mapped[str | None] = mapped_column(Text, nullable=True)
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 class AuditLog(Base):
@@ -153,3 +164,4 @@ class MarketplaceOAuthSession(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
     used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
