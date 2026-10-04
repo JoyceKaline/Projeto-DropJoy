@@ -26,7 +26,7 @@ DropJoy é uma plataforma web para comparar fornecedores, identificar oportunida
 | Marketplaces / rascunhos | ✅ |
 | Marketplace Demo | ✅ publicação simulada |
 | Shopee | 🟡 fluxo pronto, contrato/autorização oficial pendente |
-| Mercado Livre | ✅ OAuth/PKCE e refresh prontos; publicação User Products pendente do mapeamento final |
+| Mercado Livre | ✅ OAuth/PKCE, refresh e publicação User Products com validação oficial |
 | PostgreSQL + Alembic | ✅ |
 | Docker + Nginx | ✅ |
 | CI GitHub Actions | ✅ |
@@ -162,12 +162,14 @@ A integração segue a documentação oficial atual:
 - Access token com renovação via refresh token.
 - Novos fluxos de publicação devem considerar **User Products**.
 
-O adapter já possui:
+O adapter possui:
 - configuração de aplicação (`MELI_CLIENT_ID`, `MELI_CLIENT_SECRET`, `MELI_REDIRECT_URI`);
 - suporte a status de configuração;
 - geração segura da URL de autorização quando o fluxo OAuth for habilitado;
 - validação da conta por `/users/me`;
-- bloqueio explícito da publicação até mapear categoria, atributos obrigatórios, imagens, condição e User Products.
+- sugestão de categoria, leitura das regras e tipos de anúncio disponíveis;
+- validação de atributos obrigatórios e condicionais;
+- publicação User Products com condição, imagens por URL, estoque e descrição.
 
 Nunca publique `MELI_CLIENT_SECRET`, access token ou refresh token no GitHub.
 
@@ -186,3 +188,4 @@ A V1.3 implementa o fluxo real de autorização Mercado Livre:
 Access token e refresh token são armazenados criptografados no banco. O refresh token é substituído a cada renovação.
 
 Veja `docs/MERCADO_LIVRE.md`.
+

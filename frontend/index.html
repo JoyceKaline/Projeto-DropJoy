@@ -95,7 +95,28 @@
       <section id="view-marketplaces" class="view hidden">
         <div class="layout-two">
           <article class="panel"><h2>Contas</h2><form id="marketplaceAccountForm" class="stack"><label>Marketplace<select id="marketplaceProvider"><option value="demo">Demo</option><option value="shopee">Shopee</option><option value="mercadolivre">Mercado Livre</option></select></label><label>ID da conta/loja <span class="muted small">(Mercado Livre: automático após conectar)</span><input id="marketplaceExternalId" required></label><label>Nome<input id="marketplaceName" required></label><button class="btn primary">Adicionar conta</button></form><div id="marketplaceAccounts"></div></article>
-          <article class="panel"><h2>Listagens</h2><form id="listingForm" class="stack"><label>Conta<select id="listingAccount"></select></label><label>Produto<select id="listingProduct"></select></label><label>Preço<input id="listingPrice" type="number" step="0.01" min="0.01" required></label><button class="btn primary">Criar rascunho</button></form><div id="marketplaceListings"></div></article>
+          <article class="panel">
+            <h2>Listagens</h2>
+            <form id="listingForm" class="stack">
+              <label>Conta<select id="listingAccount"></select></label>
+              <label>Produto<select id="listingProduct"></select></label>
+              <label>Preço<input id="listingPrice" type="number" step="0.01" min="0.01" required></label>
+              <div id="listingMeliFields" class="stack hidden">
+                <div class="row"><button id="meliPredictCategory" type="button" class="btn secondary">Sugerir categoria</button><button id="meliLoadCategory" type="button" class="btn secondary">Carregar regras</button></div>
+                <label>Categoria Mercado Livre<input id="listingCategory" placeholder="MLB..."></label>
+                <label>Nome da família (User Product)<input id="listingFamilyName" maxlength="180"></label>
+                <label>Condição<select id="listingCondition"><option value="new">Novo</option><option value="used">Usado</option><option value="not_specified">Não especificado</option></select></label>
+                <label>Tipo de anúncio<select id="listingType"><option value="gold_special">Clássico</option><option value="gold_pro">Premium</option><option value="free">Grátis</option></select></label>
+                <label>Estoque<input id="listingStock" type="number" min="0" step="1" value="1"></label>
+                <label id="listingStockLocationsLabel" class="hidden">Estoque por depósito (JSON)<textarea id="listingStockLocations" rows="5" placeholder='[{"store_id":"...","network_node_id":"...","quantity":1}]'></textarea></label>
+                <label>Imagens públicas (uma URL por linha)<textarea id="listingPictures" rows="3" placeholder="https://..."></textarea></label>
+                <label>Atributos (JSON)<textarea id="listingAttributes" rows="7" placeholder='[{"id":"BRAND","value_name":"Marca"}]'></textarea></label>
+                <div id="listingRequirements" class="warning-box">Escolha ou sugira uma categoria e carregue as regras oficiais.</div>
+              </div>
+              <button class="btn primary">Criar rascunho</button>
+            </form>
+            <div id="marketplaceListings"></div>
+          </article>
         </div>
       </section>
 
@@ -110,3 +131,4 @@
   <script src="app.js"></script>
 </body>
 </html>
+

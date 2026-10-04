@@ -341,10 +341,13 @@ async function loadMarketplaces(){
 
   $('#listingAccount').innerHTML = marketplaceCache.accounts.map(a => '<option value="'+a.id+'">'+esc(a.display_name)+' ('+esc(a.provider)+')</option>').join('');
   $('#listingProduct').innerHTML = productsCache.map(p => '<option value="'+p.id+'">'+esc(p.name)+'</option>').join('');
+  updateListingForm();
   $('#marketplaceListings').innerHTML = marketplaceCache.listings.map(l =>
-    '<div class="listing-card"><div class="row"><strong>Listagem #'+l.id+'</strong><span class="pill '+(l.status==='published'?'good':'warn')+'">'+esc(l.status)+'</span></div>' +
-    '<div class="muted small">Produto #'+l.product_id+' · '+brl(l.price)+'</div>' +
+    '<div class="listing-card"><div class="row"><strong>Listagem #'+l.id+'</strong><span class="pill '+(['published','active'].includes(l.status)?'good':'warn')+'">'+esc(l.status)+'</span></div>' +
+    '<div class="muted small">Produto #'+l.product_id+' · '+brl(l.price)+(l.category_id?' · '+esc(l.category_id):'')+'</div>' +
     (l.status==='draft' ? '<button class="btn secondary" data-publish="'+l.id+'">Publicar</button>' : '<div class="muted small">ID externo: '+esc(l.external_listing_id || '—')+'</div>') +
+    (l.user_product_id ? '<div class="muted small">User Product: '+esc(l.user_product_id)+'</div>' : '') +
+    (l.publication_error ? '<div class="warning-box">'+esc(l.publication_error)+'</div>' : '') +
     '</div>'
   ).join('') || '<p class="muted small">Nenhuma listagem.</p>';
 
@@ -364,6 +367,72 @@ function updateMarketplaceForm(){
   input.disabled = isMeli;
   input.placeholder = isMeli ? 'Preenchido automaticamente após o OAuth' : 'ID da conta/loja';
   if(isMeli) input.value = '';
+}
+
+function selectedMarketplaceAccount(){
+  const id = Number($('#listingAccount').value);
+  return marketplaceCache.accounts.find(a => a.id === id);
+}
+
+function updateListingForm(){
+  const account = selectedMarketplaceAccount();
+  const isMeli = account && account.provider === 'mercadolivre';
+  $('#listingMeliFields').classList.toggle('hidden', !isMeli);
+  $('#listingStock').disabled = false;
+  $('#listingStockLocationsLabel').classList.add('hidden');
+  ['listingCategory','listingFamilyName','listingCondition','listingType','listingStock','listingPictures','listingAttributes'].forEach(id => {
+    $('#'+id).required = Boolean(isMeli);
+  });
+  if(isMeli && !$('#listingFamilyName').value){
+    const product = productsCache.find(p => p.id === Number($('#listingProduct').value));
+    if(product) $('#listingFamilyName').value = product.name;
+  }
+}
+
+async function predictMeliCategory(){
+  const account = selectedMarketplaceAccount();
+  const product = productsCache.find(p => p.id === Number($('#listingProduct').value));
+  if(!account || !product) return;
+  try{
+    const data = await api('/api/marketplaces/mercadolivre/accounts/'+account.id+'/categories/predict?q='+encodeURIComponent(product.name));
+    if(!data.results.length) throw new Error('Nenhuma categoria sugerida pelo Mercado Livre.');
+    const best = data.results[0];
+    $('#listingCategory').value = best.category_id;
+    $('#listingRequirements').textContent = 'Sugestão: '+best.category_name+' ('+best.category_id+'). Carregando regras...';
+    await loadMeliCategoryRequirements();
+  }catch(e){ toast(e.message); }
+}
+
+async function loadMeliCategoryRequirements(){
+  const account = selectedMarketplaceAccount();
+  const categoryId = $('#listingCategory').value.trim();
+  if(!account || !categoryId) return toast('Informe uma categoria MLB.');
+  try{
+    const data = await api('/api/marketplaces/mercadolivre/accounts/'+account.id+'/categories/'+encodeURIComponent(categoryId));
+    const required = data.attributes.filter(a => a.tags && a.tags.required);
+    $('#listingRequirements').innerHTML = '<strong>'+esc(data.category.name)+'</strong><br>Atributos obrigatórios: '+(required.map(a => esc(a.id)+' — '+esc(a.name)).join(', ') || 'nenhum marcado') + '<br>Condições: '+esc((data.category.settings.item_conditions || []).join(', '));
+    if(!data.user_product_seller){
+      $('#listingRequirements').innerHTML += '<br><strong>Atenção:</strong> esta conta ainda não possui a tag user_product_seller.';
+    }
+    $('#listingType').innerHTML = data.listing_types.map(t => '<option value="'+esc(t.id)+'">'+esc(t.name)+' ('+esc(t.id)+')</option>').join('');
+    $('#listingStockLocationsLabel').classList.toggle('hidden', !data.warehouse_management);
+    $('#listingStock').disabled = Boolean(data.warehouse_management);
+    if(data.warehouse_management){
+      const locations = data.stock_locations.map(location => ({
+        store_id:String(location.id || location.store_id || ''),
+        network_node_id:String(location.network_node_id || ''),
+        quantity:0
+      }));
+      $('#listingStockLocations').value = JSON.stringify(locations,null,2);
+      $('#listingRequirements').innerHTML += '<br><strong>Estoque multi-origem:</strong> preencha a quantidade nos depósitos listados.';
+    }else{
+      $('#listingStockLocations').value = '';
+    }
+    const current = (() => { try{return JSON.parse($('#listingAttributes').value || '[]')}catch(_){return []} })();
+    const currentIds = new Set(current.map(a => a.id));
+    required.forEach(a => { if(!currentIds.has(a.id)) current.push({id:a.id,value_name:''}); });
+    $('#listingAttributes').value = JSON.stringify(current,null,2);
+  }catch(e){ toast(e.message); }
 }
 
 async function connectMercadoLivre(accountId){
@@ -410,11 +479,32 @@ async function createMarketplaceAccount(ev){
 async function createListing(ev){
   ev.preventDefault();
   try{
-    await api('/api/marketplaces/listings',{method:'POST',body:JSON.stringify({
+    const account = selectedMarketplaceAccount();
+    const payload = {
       account_id:Number($('#listingAccount').value),
       product_id:Number($('#listingProduct').value),
       price:Number($('#listingPrice').value)
-    })});
+    };
+    if(account && account.provider === 'mercadolivre'){
+      let attributes;
+      try{ attributes = JSON.parse($('#listingAttributes').value); }
+      catch(_){ throw new Error('O JSON de atributos é inválido.'); }
+      let stockLocations = [];
+      if($('#listingStockLocations').value.trim()){
+        try{ stockLocations = JSON.parse($('#listingStockLocations').value); }
+        catch(_){ throw new Error('O JSON de estoque por depósito é inválido.'); }
+      }
+      payload.category_id = $('#listingCategory').value.trim();
+      payload.family_name = $('#listingFamilyName').value.trim();
+      payload.condition = $('#listingCondition').value;
+      payload.currency_id = 'BRL';
+      payload.listing_type_id = $('#listingType').value;
+      payload.available_quantity = Number($('#listingStock').value);
+      payload.pictures = $('#listingPictures').value.split(/\r?\n/).map(x => x.trim()).filter(Boolean);
+      payload.attributes = attributes;
+      payload.stock_locations = stockLocations;
+    }
+    await api('/api/marketplaces/listings',{method:'POST',body:JSON.stringify(payload)});
     toast('Rascunho criado.'); await loadMarketplaces();
   }catch(e){ toast(e.message); }
 }
@@ -501,6 +591,10 @@ $('#generateAiBtn').addEventListener('click',generateAi);
 $('#marketplaceAccountForm').addEventListener('submit',createMarketplaceAccount);
 $('#marketplaceProvider').addEventListener('change',updateMarketplaceForm);
 $('#listingForm').addEventListener('submit',createListing);
+$('#listingAccount').addEventListener('change',updateListingForm);
+$('#listingProduct').addEventListener('change',updateListingForm);
+$('#meliPredictCategory').addEventListener('click',predictMeliCategory);
+$('#meliLoadCategory').addEventListener('click',loadMeliCategoryRequirements);
 $('#userForm').addEventListener('submit',createUser);
 $('#supplierImportForm').addEventListener('submit',importSupplierFile);
 $('#supplierTemplateBtn').addEventListener('click',downloadSupplierTemplate);
@@ -512,3 +606,4 @@ $$('.nav-item').forEach(b => b.addEventListener('click',() => switchView(b.datas
 
 updateMarketplaceForm();
 boot();
+

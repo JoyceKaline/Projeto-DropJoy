@@ -12,7 +12,17 @@
 - Validação de conta por `/users/me`.
 - Botões Conectar, Renovar token e Desconectar.
 
-A publicação real de produtos continua bloqueada até o DropJoy concluir o fluxo **User Products**, incluindo categoria, atributos obrigatórios, condição, imagens e estoque.
+O fluxo real de **User Products** está implementado para o site brasileiro (MLB):
+
+- sugestão de categoria por `/sites/MLB/domain_discovery/search`;
+- regras da categoria por `/categories/{category_id}`;
+- atributos por `/categories/{category_id}/attributes` e validação condicional;
+- tipos de anúncio disponíveis para o seller;
+- publicação por `POST /items` com `family_name`, condição, imagens, estoque e atributos;
+- detecção de sellers com `warehouse_management` e publicação por `POST /items/multiwarehouse` com `stock_locations`;
+- descrição em texto simples após a criação do item.
+
+O formulário aceita imagens por URL pública. Para produção, use URLs HTTPS estáveis e siga os requisitos de resolução e qualidade do Mercado Livre.
 
 ## 1. Criar a aplicação
 
@@ -77,6 +87,17 @@ No DropJoy:
 5. Autorize o DropJoy na conta principal do seller.
 6. O Mercado Livre volta para o callback e o DropJoy retorna para a tela de Marketplaces já conectado.
 
+## 6. Criar e publicar um User Product
+
+1. Escolha a conta Mercado Livre conectada e um produto do DropJoy.
+2. Use **Sugerir categoria** ou informe uma categoria final `MLB...`.
+3. Carregue as regras oficiais da categoria.
+4. Preencha os atributos obrigatórios exibidos, a condição, o tipo de anúncio, o estoque e ao menos uma imagem pública.
+   Para sellers multi-origem, o formulário carrega os depósitos oficiais e exige a quantidade por `store_id`/`network_node_id`.
+5. Crie o rascunho e publique.
+
+Antes de enviar o item, o backend consulta novamente categoria, atributos obrigatórios, atributos condicionais e tipos de anúncio disponíveis. As chamadas usam sempre o token da conta vinculada ao mesmo tenant.
+
 ## Segurança
 
 - O Client Secret permanece somente no backend.
@@ -85,3 +106,4 @@ No DropJoy:
 - O parâmetro `state` é validado e expira em 10 minutos.
 - O PKCE verifier também fica criptografado durante o fluxo.
 - O refresh token do Mercado Livre é de uso único; o DropJoy salva o novo token devolvido em cada renovação.
+
