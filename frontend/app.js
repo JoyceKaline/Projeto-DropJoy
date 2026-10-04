@@ -10,6 +10,17 @@ const $$ = (s) => Array.from(document.querySelectorAll(s));
 const brl = (n) => new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(Number(n || 0));
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 
+function apiErrorMessage(data, fallback){
+  const detail = data && data.detail;
+  if(Array.isArray(detail)){
+    return detail.map(item => item && (item.msg || item.message) ? (item.msg || item.message) : JSON.stringify(item)).join(' · ');
+  }
+  if(detail && typeof detail === 'object'){
+    return detail.msg || detail.message || JSON.stringify(detail);
+  }
+  return detail || fallback;
+}
+
 function saveSession(data){
   sessionStorage.setItem(ACCESS_KEY, data.access_token);
   sessionStorage.setItem(REFRESH_KEY, data.refresh_token);
@@ -49,7 +60,7 @@ async function api(path, options, retry){
   }
   let data = null;
   try{ data = await r.json(); }catch(_){}
-  if(!r.ok) throw new Error((data && data.detail) || ('HTTP ' + r.status));
+  if(!r.ok) throw new Error(apiErrorMessage(data, 'HTTP ' + r.status));
   return data;
 }
 
@@ -114,7 +125,7 @@ async function login(ev){
       body:JSON.stringify({email:$('#loginEmail').value,password:$('#loginPassword').value})
     });
     const data = await r.json();
-    if(!r.ok) throw new Error(data.detail || 'Não foi possível entrar.');
+    if(!r.ok) throw new Error(apiErrorMessage(data, 'Não foi possível entrar.'));
     saveSession(data);
     showApp(data.user);
     await switchView('radar');
@@ -141,7 +152,7 @@ async function forgotPassword(){
       body:JSON.stringify({email})
     }).then(async r => {
       const d = await r.json();
-      if(!r.ok) throw new Error(d.detail || 'Falha na recuperação.');
+      if(!r.ok) throw new Error(apiErrorMessage(d, 'Falha na recuperação.'));
       return d;
     });
     $('#loginMessage').textContent = data.message;
@@ -162,7 +173,7 @@ async function resetPassword(ev){
       body:JSON.stringify({token:token,new_password:$('#resetPassword').value})
     }).then(async r => {
       const d = await r.json();
-      if(!r.ok) throw new Error(d.detail || 'Falha ao redefinir.');
+      if(!r.ok) throw new Error(apiErrorMessage(d, 'Falha ao redefinir.'));
       return d;
     });
     history.replaceState({},'',location.pathname);

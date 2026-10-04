@@ -54,7 +54,7 @@ Abra `http://127.0.0.1:5500`.
 
 Login demo padrão:
 
-- `joyce@demo.local`
+- `joyce@example.com`
 - `dropjoy-demo`
 
 Use apenas em desenvolvimento.

@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     refresh_token_days: int = 14
     password_reset_minutes: int = 30
     expose_reset_tokens_in_dev: bool = True
-    demo_user_email: str = "joyce@demo.local"
+    demo_user_email: str = "joyce@example.com"
     demo_user_password: str = "dropjoy-demo"
 
     bootstrap_tenant_name: str | None = None

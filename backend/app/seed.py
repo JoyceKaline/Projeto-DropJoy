@@ -8,7 +8,15 @@ from .core.security import hash_password
 settings = get_settings()
 
 def seed(session: Session):
-    if session.scalar(select(Tenant.id).limit(1)):
+    existing_tenant_id = session.scalar(select(Tenant.id).limit(1))
+    if existing_tenant_id:
+        # Compatibilidade com bancos demo criados antes da correção do e-mail.
+        legacy_user = session.scalar(select(User).where(User.email == "joyce@demo.local"))
+        target_email = settings.demo_user_email.lower()
+        target_exists = session.scalar(select(User.id).where(User.email == target_email))
+        if legacy_user and legacy_user.email != target_email and not target_exists:
+            legacy_user.email = target_email
+            session.commit()
         return
 
     tenant = Tenant(name="DropJoy Demo", slug="joyce-demo")
