@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
@@ -24,7 +25,6 @@ def get_current_user(
     user = session.scalar(select(User).where(User.id == user_id, User.tenant_id == tenant_id, User.active.is_(True)))
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Usuário inválido ou inativo")
-
     tenant = session.scalar(select(Tenant).where(Tenant.id == user.tenant_id, Tenant.active.is_(True)))
     if not tenant:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Conta inativa")
@@ -38,3 +38,10 @@ def get_current_tenant(
     if not tenant:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Conta inativa")
     return tenant
+
+def require_roles(*allowed: str) -> Callable:
+    def dependency(user: User = Depends(get_current_user)) -> User:
+        if user.role not in allowed:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permissão insuficiente")
+        return user
+    return dependency

@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import String, Float, Integer, ForeignKey, DateTime, Boolean, UniqueConstraint
+from sqlalchemy import String, Float, Integer, ForeignKey, DateTime, Boolean, UniqueConstraint, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .db import Base
 
@@ -18,9 +18,27 @@ class User(Base):
     name: Mapped[str] = mapped_column(String(120))
     email: Mapped[str] = mapped_column(String(180), unique=True, index=True)
     hashed_password: Mapped[str] = mapped_column(String(255))
-    role: Mapped[str] = mapped_column(String(30), default="owner")
+    role: Mapped[str] = mapped_column(String(30), default="member")
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     tenant: Mapped[Tenant] = relationship(back_populates="users")
+
+class RefreshToken(Base):
+    __tablename__ = "refresh_tokens"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+class PasswordResetToken(Base):
+    __tablename__ = "password_reset_tokens"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 class Supplier(Base):
     __tablename__ = "suppliers"
@@ -75,3 +93,37 @@ class TenantSupplier(Base):
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     mode: Mapped[str] = mapped_column(String(20), default="demo")
     last_sync_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+class MarketplaceAccount(Base):
+    __tablename__ = "marketplace_accounts"
+    __table_args__ = (UniqueConstraint("tenant_id", "provider", "external_account_id", name="uq_marketplace_account"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(ForeignKey("tenants.id"), index=True)
+    provider: Mapped[str] = mapped_column(String(40), index=True)
+    external_account_id: Mapped[str] = mapped_column(String(160))
+    display_name: Mapped[str] = mapped_column(String(160))
+    status: Mapped[str] = mapped_column(String(30), default="disconnected")
+    configured_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+class MarketplaceListing(Base):
+    __tablename__ = "marketplace_listings"
+    __table_args__ = (UniqueConstraint("tenant_id", "marketplace_account_id", "product_id", name="uq_tenant_marketplace_product"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(ForeignKey("tenants.id"), index=True)
+    marketplace_account_id: Mapped[int] = mapped_column(ForeignKey("marketplace_accounts.id"), index=True)
+    product_id: Mapped[int] = mapped_column(ForeignKey("products.id"), index=True)
+    external_listing_id: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    status: Mapped[str] = mapped_column(String(30), default="draft")
+    price: Mapped[float] = mapped_column(Float)
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(ForeignKey("tenants.id"), index=True)
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
+    action: Mapped[str] = mapped_column(String(100), index=True)
+    entity_type: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    entity_id: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    details: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)

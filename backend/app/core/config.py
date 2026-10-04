@@ -3,7 +3,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     app_name: str = "DropJoy API"
-    app_version: str = "0.5.0"
+    app_version: str = "0.6.0"
     environment: str = "development"
     database_url: str = "sqlite:///./dropjoy.db"
     auto_create_schema: bool = True
@@ -12,7 +12,10 @@ class Settings(BaseSettings):
 
     jwt_secret_key: str = "dev-only-change-me"
     jwt_algorithm: str = "HS256"
-    access_token_minutes: int = 480
+    access_token_minutes: int = 30
+    refresh_token_days: int = 14
+    password_reset_minutes: int = 30
+    expose_reset_tokens_in_dev: bool = True
     demo_user_email: str = "joyce@demo.local"
     demo_user_password: str = "dropjoy-demo"
 
