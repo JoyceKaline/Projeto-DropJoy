@@ -1,4 +1,4 @@
-# DropJoy 1.1
+# DropJoy 1.2
 
 **Encontre. Analise. Venda.**
 
@@ -6,7 +6,7 @@ DropJoy é uma plataforma web para comparar fornecedores, identificar oportunida
 
 ## Estado do projeto
 
-**MVP 1.1 concluído e publicável.** O núcleo funciona sem serviços pagos usando dados demo e gerador local de anúncios. Integrações externas reais ficam condicionadas às credenciais/documentação de cada conta.
+**MVP 1.2 concluído e publicável.** O núcleo funciona sem serviços pagos usando dados demo e gerador local de anúncios. Integrações externas reais ficam condicionadas às credenciais/documentação de cada conta.
 
 | Área | Estado |
 |---|---|
@@ -26,6 +26,7 @@ DropJoy é uma plataforma web para comparar fornecedores, identificar oportunida
 | Marketplaces / rascunhos | ✅ |
 | Marketplace Demo | ✅ publicação simulada |
 | Shopee | 🟡 fluxo pronto, contrato/autorização oficial pendente |
+| Mercado Livre | 🟡 marketplace adicionado; OAuth/User Products pendentes de credenciais |
 | PostgreSQL + Alembic | ✅ |
 | Docker + Nginx | ✅ |
 | CI GitHub Actions | ✅ |
@@ -149,3 +150,23 @@ Campos opcionais:
 - Prazo em horas
 
 A importação atualiza ofertas existentes e adiciona um snapshot ao histórico de preço/estoque. O limite atual é 10 MB e 5.000 linhas por arquivo.
+
+
+### Mercado Livre
+
+O Mercado Livre está disponível como provider `mercadolivre` no DropJoy.
+
+A integração segue a documentação oficial atual:
+- OAuth 2.0 Authorization Code para autorização do seller.
+- Tokens enviados no header `Authorization: Bearer ...`.
+- Access token com renovação via refresh token.
+- Novos fluxos de publicação devem considerar **User Products**.
+
+O adapter já possui:
+- configuração de aplicação (`MELI_CLIENT_ID`, `MELI_CLIENT_SECRET`, `MELI_REDIRECT_URI`);
+- suporte a status de configuração;
+- geração segura da URL de autorização quando o fluxo OAuth for habilitado;
+- validação da conta por `/users/me`;
+- bloqueio explícito da publicação até mapear categoria, atributos obrigatórios, imagens, condição e User Products.
+
+Nunca publique `MELI_CLIENT_SECRET`, access token ou refresh token no GitHub.

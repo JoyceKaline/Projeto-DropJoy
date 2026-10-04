@@ -53,6 +53,12 @@ services:
       SHOPEE_BASE_URL: ${SHOPEE_BASE_URL:-}
       SHOPEE_SHOP_ID: ${SHOPEE_SHOP_ID:-}
       SHOPEE_ACCESS_TOKEN: ${SHOPEE_ACCESS_TOKEN:-}
+      MELI_ENABLED: ${MELI_ENABLED:-false}
+      MELI_CLIENT_ID: ${MELI_CLIENT_ID:-}
+      MELI_CLIENT_SECRET: ${MELI_CLIENT_SECRET:-}
+      MELI_REDIRECT_URI: ${MELI_REDIRECT_URI:-}
+      MELI_ACCESS_TOKEN: ${MELI_ACCESS_TOKEN:-}
+      MELI_USER_ID: ${MELI_USER_ID:-}
     depends_on:
       db:
         condition: service_healthy

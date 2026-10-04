@@ -3,7 +3,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     app_name: str = "DropJoy API"
-    app_version: str = "1.1.0"
+    app_version: str = "1.2.0"
     environment: str = "development"
     database_url: str = "sqlite:///./dropjoy.db"
     auto_create_schema: bool = True
@@ -54,6 +54,13 @@ class Settings(BaseSettings):
     shopee_base_url: str | None = None
     shopee_shop_id: str | None = None
     shopee_access_token: str | None = None
+
+    meli_enabled: bool = False
+    meli_client_id: str | None = None
+    meli_client_secret: str | None = None
+    meli_redirect_uri: str | None = None
+    meli_access_token: str | None = None
+    meli_user_id: str | None = None
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 

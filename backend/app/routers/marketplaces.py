@@ -22,14 +22,26 @@ class ListingCreate(BaseModel):
     product_id: int
     price: float = Field(gt=0)
 
-VALID_PROVIDERS = {"demo", "shopee"}
+VALID_PROVIDERS = {"demo", "shopee", "mercadolivre"}
 
 @router.get("")
 def overview(user: User = Depends(get_current_user), session: Session = Depends(get_db)):
     accounts = session.scalars(select(MarketplaceAccount).where(MarketplaceAccount.tenant_id == user.tenant_id).order_by(MarketplaceAccount.provider)).all()
     listings = session.scalars(select(MarketplaceListing).where(MarketplaceListing.tenant_id == user.tenant_id).order_by(MarketplaceListing.id.desc())).all()
+    account_rows = []
+    for a in accounts:
+        connector = marketplace_for(a.provider)
+        account_rows.append({
+            "id": a.id,
+            "provider": a.provider,
+            "external_account_id": a.external_account_id,
+            "display_name": a.display_name,
+            "status": a.status,
+            "connector_configured": bool(connector and connector.configured()),
+            "app_configured": bool(connector and getattr(connector, "app_configured", lambda: connector.configured())()),
+        })
     return {
-        "accounts": [{"id": a.id, "provider": a.provider, "external_account_id": a.external_account_id, "display_name": a.display_name, "status": a.status, "connector_configured": bool(marketplace_for(a.provider) and marketplace_for(a.provider).configured())} for a in accounts],
+        "accounts": account_rows,
         "listings": [{"id": x.id, "account_id": x.marketplace_account_id, "product_id": x.product_id, "external_listing_id": x.external_listing_id, "status": x.status, "price": x.price, "published_at": x.published_at.isoformat() if x.published_at else None} for x in listings],
     }
 
