@@ -20,7 +20,7 @@ DropJoy é uma plataforma web para comparar fornecedores, identificar oportunida
 | Importação CSV/XLSX de fornecedor | ✅ |
 | Histórico de preço/estoque | ✅ |
 | Dropify | 🟡 adapter pronto, schema/credenciais pendentes |
-| DSLite | 🟡 adapter pronto, schema/credenciais pendentes |
+| DSLite | 🟡 catálogo oficial mapeado; credencial e fornecedor da conta pendentes |
 | DropJoy AI local | ✅ |
 | DropJoy AI com OpenAI | ✅ configurável |
 | Marketplaces / rascunhos | ✅ |
@@ -107,7 +107,7 @@ Sem `OPENAI_API_KEY`, o gerador local permanece funcional. Com uma chave, o back
 
 ### Fornecedores
 
-Dropify e DSLite possuem adapters isolados. Eles propositalmente não inventam endpoints/schema: após a homologação, basta mapear a resposta real para `SupplierItem`.
+Dropify e DSLite possuem adapters isolados. O catálogo CrossDocking oficial da DSLite já é paginado e mapeado para `SupplierItem`; para ativá-lo, informe no `.env` o token da conta e `CrossDocking/Catalogo/{fornecedorid}`. O adapter da Dropify continua bloqueado até haver contrato homologado, sem inventar endpoints ou schemas.
 
 ### Shopee
 

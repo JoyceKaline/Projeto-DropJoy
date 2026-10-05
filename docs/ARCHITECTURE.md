@@ -35,7 +35,7 @@ Dados de conta, usuários, fornecedores habilitados, contas de marketplace, list
 
 ## Conectores
 
-Cada fornecedor/marketplace fica atrás de um adapter. O código não assume contratos que não foram confirmados. Dropify, DSLite e Shopee permanecem bloqueados para operação real até credenciais e schemas oficiais estarem disponíveis.
+Cada fornecedor/marketplace fica atrás de um adapter. O código não assume contratos que não foram confirmados. O catálogo CrossDocking da DSLite usa o contrato público oficial (header `Token`, paginação e coleção `produtos`), mas permanece desativado até o token e o fornecedor da conta serem informados no ambiente. Dropify e Shopee continuam bloqueados para operação real até credenciais e schemas oficiais estarem disponíveis.
 
 ## DropJoy AI
 

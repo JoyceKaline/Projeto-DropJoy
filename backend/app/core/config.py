@@ -49,6 +49,8 @@ class Settings(BaseSettings):
     dslite_base_url: str | None = None
     dslite_api_token: str | None = None
     dslite_products_path: str | None = None
+    dslite_page_size: int = 100
+    dslite_max_pages: int = 100
 
     shopee_enabled: bool = False
     shopee_base_url: str | None = None
